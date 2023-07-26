@@ -65,21 +65,21 @@ res_tournament_results = requests.get(f"{BASE_URL}/historical-raw-data/rounds",p
 tournament_results = res_tournament_results.json()
 
 
-for tournament in tournament_results:
-    tournament_name = tournament['event_name']
-    calendar_year = tournament['calendar_year']
-    tour = tournament['tour']
-    date = tournament['date']
-    dg_id = tournament['event_id']
+for key, value in tournament_results.items():
+    tournament_name = value["event_name"]
+    calendar_year = value["year"]
+    date = value["event_completed"]
+    dg_id = value["event_id"]
     
-    t = Tournament.query.filter(tournament_name=tournament_name, calendar_year=calendar_year, date=date).first()
+    
+    t = Tournament.query.filter(tournament_name==tournament_name, calendar_year==calendar_year, dg_id==dg_id).first()
 
     if not t:
-        t = Tournament(tournament_name = tournament_name, calendar_year=calendar_year, dg_id=dg_id, tour=tour, date=date)
+        t = Tournament(tournament_name = tournament_name, calendar_year=calendar_year, dg_id=dg_id, date=date)
         db.session.add(t)
         db.session.commit()
 
-    for player in tournament['scores']:
+    for player in value['scores']:
         
         g = Golfer.query.filter_by(dg_id=player['dg_id']).first()
 
@@ -91,16 +91,15 @@ for tournament in tournament_results:
             db.session.add(g)
             db.session.commit()
                     
-        for key in player:
+        for key, value in player.items():
             if 'round' in key:
                 round = int(key.split("_")[1])
-                score = key.get('score')
+                score = value["score"]
                 tg = TournamentGolfer(tournament_id = t.id,
                                       golfer_id = g.id,
                                       tournament_name = t.tournament_name, 
                                       calendar_year = t.calendar_year,
-                                      date = t.date,
-                                      golfer_dg_id = player['dg_id'], 
+                                      golfer_dg_id = g.dg_id,
                                       round = round, 
                                       golfer_score=score )
                 db.session.add(tg)

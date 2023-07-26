@@ -183,7 +183,7 @@ class Tournament (db.Model):
     tour = db.Column(db.Text)
 
     __table_args__ = (
-        db.UniqueConstraint("tournament_name","calendar_year","date", name="uq_tournament_name_calendar_year_date"),
+        db.UniqueConstraint("tournament_name","calendar_year","dg_id", name="uq_tournament_name_calendar_year_dg_id"),
     )
 
 
@@ -270,7 +270,7 @@ class TournamentGolfer(db.Model):
     # Define the external IDs as foreign keys with ondelete='CASCADE'
     tournament_name = db.Column(db.Text)
     calendar_year = db.Column(db.Integer)
-    date = db.Column(db.DateTime)
+    tournament_dg_id = db.Column(db.Integer)
 
 
     # Add other fields for the association as needed
@@ -282,10 +282,10 @@ class TournamentGolfer(db.Model):
 
     # Define a unique constraint to ensure golfer_id and golfer_dg_id always match
     __table_args__ = (
-        db.UniqueConstraint("golfer_id", "golfer_dg_id", name="uq_tournament_golfer_golfer_id_dg_id"),
-        db.ForeignKeyConstraint(["tournament_name","calendar_year","date"], ["tournaments.tournament_name","tournaments.calendar_year","tournaments.date"], ondelete="CASCADE"),
+        # db.UniqueConstraint("golfer_id", "golfer_dg_id", name="uq_tournament_golfer_golfer_id_dg_id"),
+        db.ForeignKeyConstraint(["tournament_name","calendar_year","tournament_dg_id"], ["tournaments.tournament_name","tournaments.calendar_year","tournaments.dg_id"], ondelete="CASCADE"),
     )
 
     def __repr__(self):
         """Better representation of TournamentGolfer"""
-        return f"<TournamentGolfer #{self.id} {self.tournament_id} {self.tournament_name} {self.calendar_year} {self.date} {self.golfer_id} {self.golfer_dg_id} {self.golfer_score}"
+        return f"<TournamentGolfer #{self.id} {self.tournament_id} {self.tournament_name} {self.calendar_year} {self.tournament_dg_id} {self.golfer_id} {self.golfer_dg_id} {self.golfer_score}"
