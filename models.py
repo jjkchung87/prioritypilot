@@ -2,6 +2,8 @@ from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from flask_bcrypt import Bcrypt
 from sqlalchemy import ForeignKey, ForeignKeyConstraint
+import random
+import string
 
 db = SQLAlchemy()
 def connect_db(app):
@@ -51,21 +53,35 @@ class User(db.Model):
     
     def __repr__(self):
         """better representation of obect"""
-        return f"<User #{self.id} {self.username}"
+        return f"<User #{self.id} {self.username}>"
+    
+    def serialize(self):
+        """Serialize user to Python object"""
+
+        return {
+            "id": self.id,
+            "username": self.username,
+            "leagues": [league.serialize() for league in self.leagues],
+            "teams": [team.serialize() for team in self.teams]
+        }
     
     @classmethod
-    def signup(cls, username, email, first_name, last_name, password, profile_url):
+    def signup(cls, username, email, first_name, last_name, password, profile_url=DEFAULT_URL):
         """Sign up a new user with password hashing"""
 
         hashed = bcrypt.generate_password_hash(password)
         hashed_utf8 = hashed.decode("utf8")
 
-        return cls(username=username, 
-                   email=email,
-                   password=hashed_utf8,
-                   first_name=first_name,
-                   last_name=last_name,
-                   profile_url=profile_url)
+        user = User(username=username, 
+            email=email,
+            password=hashed_utf8,
+            first_name=first_name,
+            last_name=last_name,
+            profile_url=profile_url)
+        
+        db.session.add(user)
+        db.session.commit()
+        return user
 
     def authenticate(cls, username, password):
         """Authenticate user against hashed password"""
@@ -89,6 +105,13 @@ class League (db.Model):
                             nullable=False,
                             unique=True)
     
+    entry_code = db.Column(db.Text,
+                           nullable=False)
+    
+    privacy = db.Column(db.Text,nullable=False)
+
+    golfer_count = db.Column(db.Integer)  
+    
     created_at = db.Column(db.DateTime,
                            default=datetime.utcnow)
     
@@ -99,11 +122,52 @@ class League (db.Model):
                            nullable=False)
     
     teams = db.relationship("Team", secondary="league_teams", backref="leagues")
+
+    golfers = db.relationship("League", secondary="league_golfers", backref="leagues")
     
     def __repr__(self):
         """Better representation of League model"""
-        return f"<League #{self.id} {self.league_name}"
+        return f"<League #{self.id} {self.league_name}>"
     
+    def serialize(self):
+        """Serialize league to Python object"""
+
+        return {
+            "id": self.id,
+            "league_name": self.league_name,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "privacy": self.privacy,
+            "golfer_count": self.golfer_count,
+            "teams": [team.serialize() for team in self.teams],
+            "golfers": [golfer.serialize() for golfer in self.golfers]
+        }
+    
+    @classmethod
+    def create_new_league(cls, league_name, start_date, end_date, privacy, golfer_count):
+        """create a new league and create """
+
+        def generate_entry_code():
+            characters = string.digits + string.ascii_uppercase
+            return ''.join(random.choices(characters, k=6))
+
+        entry_code = generate_entry_code()
+
+        league = League(league_name=league_name, entry_code=entry_code, privacy=privacy, golfer_count=golfer_count, start_date=start_date, end_date=end_date)
+        db.session.add(league)
+        db.session.commit()
+        return league
+    
+    @classmethod
+    def authenticate(cls, league_name, entry_code):
+        """authentication to see/join a private league"""
+
+        league = League.query.filter(League.league_name == league_name, League.entry_code == entry_code)
+
+        if league:
+            return True
+        
+        return False
 
 class Team (db.Model):
     """Team model"""
@@ -118,7 +182,10 @@ class Team (db.Model):
                             unique=True)
     
     user_id = db.Column(db.Integer,
-                        db.ForeignKey('users.id', ondelete='cascade'))
+                        db.ForeignKey('users.id', ondelete="cascade"))
+    
+    league_id = db.Column(db.Integer,
+                          db.ForeignKey('leagues.id', ondelete="cascade"))
     
     created_at = db.Column(db.DateTime,
                            default=datetime.utcnow)
@@ -127,7 +194,19 @@ class Team (db.Model):
     
     def __repr__(self):
         """Better representation of Team model"""
-        return f"<League #{self.id} {self.team_name} {self.user_id}"
+        return f"<League #{self.id} {self.team_name} {self.user_id}>"
+    
+    def serialize(self):
+        """Serialize team to Python object"""
+
+        return {
+            "id": self.id,
+            "team_name": self.team_name,
+            "user_id": self.user_id,
+            "league_id": self.league_id,
+            "created_at": self.created_at,
+            "golfers": [golfer.serialize() for golfer in self.golfers],
+        }
     
     
 
@@ -159,9 +238,18 @@ class Golfer (db.Model):
 
     def __repr__(self):
         """Better representation of golfer"""
-        return f"<Golfer #{self.id} {self.first_name} {self.last_name}"
+        return f"<Golfer #{self.id} dg_id:{self.dg_id} {self.first_name} {self.last_name}>"
     
-    
+    def serialize(self):
+        """Serialize golfer to Python object"""
+
+        return {
+            "id": self.id,
+            "dg_id": self.dg_id,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "leagues": [team.serialize() for team in self.leagues]
+        }
     
 class Tournament (db.Model):
     """Tournament model"""
@@ -186,12 +274,19 @@ class Tournament (db.Model):
         db.UniqueConstraint("tournament_name","calendar_year","dg_id", name="uq_tournament_name_calendar_year_dg_id"),
     )
 
-
-    
     def __repr__(self):
         """Better representation of tournaments"""
-        return f"<Tournament #{self.id} {self.first_name} {self.last_name}"
+        return f"<Tournament #{self.id} dg_id:{self.dg_id} {self.tournament_name} {self.calendar_year} {self.date} {self.tour}>"
     
+    def serialize(self):
+        """Serialize tournament to Python object"""
+        return {
+            "id": self.id,
+            "tournament_name": self.tournament_name,
+            "calendar_year": self.calendar_year,
+            "date": self.date,
+            "tour": self.tour
+        }    
     
 class UserGolfer(db.Model):
     """User and Golfer associationn"""
@@ -209,7 +304,7 @@ class UserGolfer(db.Model):
     
     def __repr__(self):
         """Better representation of UserGolfer"""
-        return f"<UserGolfer #{self.id} {self.user_id} {self.golfer_id}"
+        return f"<UserGolfer #{self.id} {self.user_id} {self.golfer_id}>"
 
 class LeagueTeam(db.Model):
     """League and Team association"""
@@ -232,7 +327,7 @@ class LeagueTeam(db.Model):
 
     def __repr__(self):
         """Better representation of LeagueTeam"""
-        return f"<LeagueTeam #{self.id} {self.league_id} {self.team_id} {self.team_score}"
+        return f"<LeagueTeam #{self.id} {self.league_id} {self.team_id} {self.team_score}>"
         
     
 class TeamGolfer(db.Model):
@@ -253,7 +348,27 @@ class TeamGolfer(db.Model):
 
     def __repr__(self):
         """Better representation of TeamGolfer"""
-        return f"<TeamGolfer #{self.id} {self.team_id} {self.golfer_id} {self.golfer_score}"
+        return f"<TeamGolfer #{self.id} {self.team_id} {self.golfer_id} {self.golfer_score}>"
+
+class LeagueGolfer(db.Model):
+    """League and Golfer association"""
+
+    __tablename__  = "league_golfers"
+
+    id = db.Column(db.Integer,
+                primary_key=True)
+
+    league_id = db.Column(db.Integer,
+                        db.ForeignKey('leagues.id', ondelete='cascade'))
+    
+    golfer_id = db.Column(db.Integer,
+                        db.ForeignKey('golfers.id', ondelete='cascade'))
+    
+    golfer_score = db.Column(db.Integer)
+
+    def __repr__(self):
+        """Better representation of LeagueGolfer"""
+        return f"<LeagueGolfer #{self.id} {self.league_id} {self.golfer_id} {self.golfer_score}>"
     
 
 class TournamentGolfer(db.Model):
@@ -288,4 +403,4 @@ class TournamentGolfer(db.Model):
 
     def __repr__(self):
         """Better representation of TournamentGolfer"""
-        return f"<TournamentGolfer #{self.id} {self.tournament_id} {self.tournament_name} {self.calendar_year} {self.tournament_dg_id} {self.golfer_id} {self.golfer_dg_id} {self.golfer_score}"
+        return f"<TournamentGolfer #{self.id} {self.tournament_id} {self.tournament_name} {self.calendar_year} {self.tournament_dg_id} {self.golfer_id} {self.golfer_dg_id} {self.golfer_score}>"

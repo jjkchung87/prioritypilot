@@ -52,7 +52,8 @@ for tournament in tournaments:
     db.session.add(t)
     db.session.commit()
 
-
+#******************************************************************************************************************************************************************************
+#GET TOURNAMENT RESULTS
 
 
 
@@ -72,7 +73,7 @@ for key, value in tournament_results.items():
     dg_id = value["event_id"]
     
     
-    t = Tournament.query.filter(tournament_name==tournament_name, calendar_year==calendar_year, dg_id==dg_id).first()
+    t = Tournament.query.filter(Tournament.tournament_name==tournament_name, Tournament.calendar_year==calendar_year, Tournament.dg_id==dg_id).first()
 
     if not t:
         t = Tournament(tournament_name = tournament_name, calendar_year=calendar_year, dg_id=dg_id, date=date)
@@ -100,6 +101,7 @@ for key, value in tournament_results.items():
                                       tournament_name = t.tournament_name, 
                                       calendar_year = t.calendar_year,
                                       golfer_dg_id = g.dg_id,
+                                      tournament_dg_id = t.dg_id,
                                       round = round, 
                                       golfer_score=score )
                 db.session.add(tg)
