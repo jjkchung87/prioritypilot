@@ -1,10 +1,14 @@
-from models import db, Golfer, Tournament, TournamentGolfer
+from models import db, Golfer, Tournament, TournamentGolfer, User, League, Team
 from app import app
 import requests
 
+# db.session.query(Golfer).delete()
+# db.session.query(Tournament).delete()
+# db.session.commit()
+
+db.session.rollback()
 db.drop_all()
 db.create_all()
-
 
 #******************************************************************************************************************************************************************************
 #API Requests
@@ -96,15 +100,22 @@ for key, value in tournament_results.items():
             if 'round' in key:
                 round = int(key.split("_")[1])
                 score = value["score"]
+                course_par = value["course_par"]
+                if value["score"]:
+                    score_vs_par = score - course_par
+                else: 
+                    score_vs_par = None
                 tg = TournamentGolfer(tournament_id = t.id,
                                       golfer_id = g.id,
                                       tournament_name = t.tournament_name, 
                                       calendar_year = t.calendar_year,
                                       golfer_dg_id = g.dg_id,
                                       tournament_dg_id = t.dg_id,
-                                      round = round, 
+                                      round = round,
+                                      course_par = course_par, 
+                                      score_vs_par = score_vs_par,
                                       golfer_score=score )
                 db.session.add(tg)
                 db.session.commit()
 
-
+golfers_list = Golfer.query.all()

@@ -48,8 +48,8 @@ class User(db.Model):
     
     teams = db.relationship('Team', backref="users")
 
-    leagues = db.relationship('League', secondary="league_teams", backref="users")
-    golfers = db.relationship('Golfer', secondary="user_golfers", backref="users")
+    leagues = db.relationship('League', secondary="user_leagues", backref="users")
+    # golfers = db.relationship('Golfer', secondary="user_golfers", backref="users")
     
     def __repr__(self):
         """better representation of obect"""
@@ -83,10 +83,11 @@ class User(db.Model):
         db.session.commit()
         return user
 
+    @classmethod
     def authenticate(cls, username, password):
         """Authenticate user against hashed password"""
 
-        user = cls.query.filter_by(username=username).first()
+        user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
             return user
         else:
@@ -110,6 +111,8 @@ class League (db.Model):
     
     privacy = db.Column(db.Text,nullable=False)
 
+    max_teams = db.Column(db.Integer)
+
     golfer_count = db.Column(db.Integer)  
     
     created_at = db.Column(db.DateTime,
@@ -121,14 +124,50 @@ class League (db.Model):
     end_date = db.Column(db.DateTime,
                            nullable=False)
     
-    teams = db.relationship("Team", secondary="league_teams", backref="leagues")
-
-    golfers = db.relationship("League", secondary="league_golfers", backref="leagues")
+    league_manager_id = db.Column(db.Integer, nullable=False)
     
+    draft_completed = db.Column(db.Boolean,
+                                nullable=False,
+                                default=False)
+    
+    teams = db.relationship("Team", backref="leagues")
+
+    golfers = db.relationship("Golfer", secondary="league_golfers", backref="leagues")
+    
+    @property
+    def status(self):
+        """Property to get status of league"""
+        return self.get_status()
+
     def __repr__(self):
         """Better representation of League model"""
         return f"<League #{self.id} {self.league_name}>"
     
+    
+    def get_status(self):
+        """Get status of league"""
+
+        current_date = datetime.utcnow()
+
+        if self.draft_completed:
+            if current_date <= self.end_date:
+                return "in-play"
+            
+            if current_date > self.end_date:
+                return "end-play"
+
+        if current_date < self.start_date:
+            return "pre-draft"
+    
+        if self.start_date <= current_date <= self.end_date:
+            if self.draft_completed:
+                return "in-play"
+            else:
+                return "in-draft"
+
+        if current_date > self.end_date:
+            return "end-play"
+
     def serialize(self):
         """Serialize league to Python object"""
 
@@ -138,13 +177,14 @@ class League (db.Model):
             "start_date": self.start_date,
             "end_date": self.end_date,
             "privacy": self.privacy,
+            "max_teams": self.max_teams,
             "golfer_count": self.golfer_count,
             "teams": [team.serialize() for team in self.teams],
             "golfers": [golfer.serialize() for golfer in self.golfers]
         }
     
     @classmethod
-    def create_new_league(cls, league_name, start_date, end_date, privacy, golfer_count):
+    def create_new_league(cls, league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed):
         """create a new league and create """
 
         def generate_entry_code():
@@ -153,7 +193,17 @@ class League (db.Model):
 
         entry_code = generate_entry_code()
 
-        league = League(league_name=league_name, entry_code=entry_code, privacy=privacy, golfer_count=golfer_count, start_date=start_date, end_date=end_date)
+        league = League(league_name=league_name, 
+                        entry_code=entry_code, 
+                        privacy=privacy, 
+                        max_teams=max_teams, 
+                        golfer_count=golfer_count,
+                        league_manager_id=league_manager_id,
+                        draft_completed=draft_completed, 
+                        start_date=start_date, 
+                        end_date=end_date)
+        user = User.query.get(league_manager_id)
+        league.users.append(user)
         db.session.add(league)
         db.session.commit()
         return league
@@ -162,12 +212,13 @@ class League (db.Model):
     def authenticate(cls, league_name, entry_code):
         """authentication to see/join a private league"""
 
-        league = League.query.filter(League.league_name == league_name, League.entry_code == entry_code)
+        league = League.query.filter(League.league_name == league_name, League.entry_code == entry_code).first()
 
         if league:
-            return True
+            return league
         
-        return False
+        else:
+            return False
 
 class Team (db.Model):
     """Team model"""
@@ -191,10 +242,11 @@ class Team (db.Model):
                            default=datetime.utcnow)
     
     golfers = db.relationship('Golfer',secondary="team_golfers", backref="teams")
+
     
     def __repr__(self):
         """Better representation of Team model"""
-        return f"<League #{self.id} {self.team_name} {self.user_id}>"
+        return f"<Team #{self.id} {self.team_name} {self.user_id}>"
     
     def serialize(self):
         """Serialize team to Python object"""
@@ -203,12 +255,32 @@ class Team (db.Model):
             "id": self.id,
             "team_name": self.team_name,
             "user_id": self.user_id,
-            "league_id": self.league_id,
-            "created_at": self.created_at,
-            "golfers": [golfer.serialize() for golfer in self.golfers],
+            "league_id": self.league_id,            
+            "golfers": [golfer.serialize() for golfer in self.golfers]
         }
     
-    
+    def add_golfer(self, golfer_id):
+        """Add golfer on the team and related league"""
+
+        golfer = Golfer.query.get(golfer_id)
+        league = League.query.get(self.league_id)
+        
+        self.golfers.append(golfer)
+        league.golfers.append(golfer)
+        
+        db.session.commit()
+
+    def remove_golfer(self, golfer_id):
+        """Remove a golfer on the team and related league"""
+
+        golfer = Golfer.query.get(golfer_id)
+        league = League.query.get(self.league_id)        
+        
+        self.golfers.remove(golfer)
+        league.golfers.remove(golfer)
+        
+        db.session.commit()
+
 
 class Golfer (db.Model):
     """Golfer model"""
@@ -247,8 +319,7 @@ class Golfer (db.Model):
             "id": self.id,
             "dg_id": self.dg_id,
             "first_name": self.first_name,
-            "last_name": self.last_name,
-            "leagues": [team.serialize() for team in self.leagues]
+            "last_name": self.last_name
         }
     
 class Tournament (db.Model):
@@ -288,6 +359,26 @@ class Tournament (db.Model):
             "tour": self.tour
         }    
     
+
+class UserLeague(db.Model):
+    """User and League Association"""
+
+    __tablename__= "user_leagues"
+
+    id = db.Column(db.Integer,
+                primary_key=True)
+
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('users.id', ondelete='cascade'))
+    
+    league_id = db.Column(db.Integer,
+                          db.ForeignKey('leagues.id', ondelete='cascade'))
+    
+    def __repr__(self):
+        """Better representation of UserGolfer"""
+        return f"<UserLeague #{self.id} {self.user_id} {self.league_id}>"
+    
+
 class UserGolfer(db.Model):
     """User and Golfer associationn"""
 
@@ -305,29 +396,31 @@ class UserGolfer(db.Model):
     def __repr__(self):
         """Better representation of UserGolfer"""
         return f"<UserGolfer #{self.id} {self.user_id} {self.golfer_id}>"
-
-class LeagueTeam(db.Model):
-    """League and Team association"""
-
-    __tablename__  = "league_teams"
-
-    id = db.Column(db.Integer,
-                primary_key=True)
-
-    league_id = db.Column(db.Integer,
-                        db.ForeignKey('leagues.id', ondelete='cascade'))
-        
-    team_id = db.Column(db.Integer,
-                        db.ForeignKey('teams.id', ondelete='cascade'))
     
-    team_score = db.Column(db.Integer)
 
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('users.id', ondelete='cascade'))
 
-    def __repr__(self):
-        """Better representation of LeagueTeam"""
-        return f"<LeagueTeam #{self.id} {self.league_id} {self.team_id} {self.team_score}>"
+# class LeagueTeam(db.Model):
+#     """League and Team association"""
+
+#     __tablename__  = "league_teams"
+
+#     id = db.Column(db.Integer,
+#                 primary_key=True)
+
+#     league_id = db.Column(db.Integer,
+#                         db.ForeignKey('leagues.id', ondelete='cascade'))
+        
+#     team_id = db.Column(db.Integer,
+#                         db.ForeignKey('teams.id', ondelete='cascade'))
+    
+#     team_score = db.Column(db.Integer)
+
+#     user_id = db.Column(db.Integer,
+#                         db.ForeignKey('users.id', ondelete='cascade'))
+
+#     def __repr__(self):
+#         """Better representation of LeagueTeam"""
+#         return f"<LeagueTeam #{self.id} {self.league_id} {self.team_id} {self.team_score}>"
         
     
 class TeamGolfer(db.Model):
@@ -390,6 +483,8 @@ class TournamentGolfer(db.Model):
 
     # Add other fields for the association as needed
     round = db.Column(db.Integer)
+    course_par = db.Column(db.Integer)
+    score_vs_par = db.Column(db.Integer)
     golfer_score = db.Column(db.Integer)
 
     # Add the golfer_dg_id as well

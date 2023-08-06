@@ -1,6 +1,7 @@
-from wtforms import SelectField, StringField, TextAreaField, PasswordField, DateField, SelectMultipleField, IntegerField, SubmitField
+from wtforms import SelectField, StringField, TextAreaField, PasswordField, DateField, SelectMultipleField, IntegerField, SubmitField, ValidationError
 from flask_wtf import FlaskForm
-from wtforms.validators import InputRequired, Optional, Length, Email, NumberRange
+from wtforms.validators import InputRequired, Optional, Length, Email, NumberRange, email_validator
+import email_validator
 
 
 class SignUpForm(FlaskForm):
@@ -17,23 +18,40 @@ class LoginForm(FlaskForm):
     username = StringField('Username',validators=[InputRequired(), Length(max=20)])
     password = PasswordField('Password',validators=[InputRequired(), Length(min=6)])
 
+class UserUpdateForm(FlaskForm):
+    """Form to update existing user details"""
+    first_name = StringField('First Name',validators=[Optional()])
+    last_name = StringField('Last Name',validators=[Optional()])
+    username = StringField('Username',validators=[Optional(), Length(max=20)])
+    email = StringField('Email',validators=[Optional(),Email()])
+    old_password = PasswordField('Old Password',validators=[InputRequired(), Length(min=6)])
+    new_password = PasswordField('New Password',validators= [Optional(),Length(min=6) ])
+    profile_url = StringField('(Optional) Image URL', validators=[Optional()])
+
+    
+
 class CreateLeagueForm(FlaskForm):
     """Form to create a new league"""
     league_name= StringField('League Name', validators=[InputRequired()])
     start_date= DateField('Start Date', validators=[InputRequired()])
     end_date= DateField('End Date', validators=[InputRequired()])
     privacy = SelectField('Private or Public', choices=[('private','Private'),('public','Public')], validators=[InputRequired()])
+    max_teams = IntegerField('Maximum Number of Teams', validators=[NumberRange(min=1, max=10)])
     golfer_count = IntegerField('Team Size', validators=[NumberRange(min=1, max=10)])
 
-    def validate(self):
-        if not super(CreateLeagueForm, self).validate():
-            return False
+    def validate_end_date(form, field):
+        if field.data <= form.start_date.data:
+            raise ValidationError("End date must be after start date.")
 
-        if self.start_date.data >= self.end_date.data:
-            self.end_date.errors.append("End date must be after start date.")
-            return False
+    # def validate(self):
+    #     if not super(CreateLeagueForm, self).validate():
+    #         return False
 
-        return True
+    #     if self.start_date.data >= self.end_date.data:
+    #         self.end_date.errors.append("End date must be after start date.")
+    #         return False
+
+    #     return True
 
 
 class JoinPrivateLeagueForm(FlaskForm):
@@ -44,7 +62,10 @@ class JoinPrivateLeagueForm(FlaskForm):
 class JoinPublicLeagueForm(FlaskForm):
     """Form to join a public league"""
 
-    league_name = SelectField("Choose League")
+    league_name = SelectField("Choose League", coerce=int)
+
+    def set_choices(self, public_leagues):
+        self.league_name.choices = [(league.id, league.league_name) for league in public_leagues]
 
 class CreateTeamForm(FlaskForm):
     """Form to create a new team"""

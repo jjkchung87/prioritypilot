@@ -10,13 +10,12 @@ class User {
     }){
         this.id = id,
         this.username = username,
-        this.teams = teams.map(t => {new Team(t)}),
-        this.leagues= leagues.map(l => {new League(l)})
+        this.teams = teams.map(t => new Team(t)),
+        this.leagues= leagues.map(l => new League(l))
     }
 
-    static async signUp(username, first_name, last_name, email, password, profile_url){
-        const data = {username, first_name, last_name, email, password, profile_url}
-        const res = await axios.post(`${BASE_URL}/users/signup`, data)
+    static async signUp(formData){
+        const res = await axios.post(`${BASE_URL}/users/signup`, formData)
         const {user} = res.data
         
         return new User({id:user.id,
@@ -25,22 +24,22 @@ class User {
                         leagues : user.teams})
     }
 
-    static async login(username, password){
+    static async authenticate(username, password){
         const data = {username, password}
-        const res = await axios.post(`${BASE_URL}/users/login`, data)
+        const res = await axios.post(`${BASE_URL}/users/authenticate`, data)
         const {user} = res.data
-        
+
         return new User({id:user.id,
             username:user.username,
             teams : user.teams,
-            leagues : user.teams})
+            leagues : user.leagues})
 
     }
 
     static async retrieveCurrentUser(id){
-        const res = await axios.get(`${BASE_URL}/api/users/${id}`)
+        const res = await axios.get(`${BASE_URL}/users/${id}`)
         const {user} = res.data
-        
+
         return new User({id:user.id,
             username:user.username,
             teams : user.teams,
@@ -90,6 +89,7 @@ class League {
         end_date,
         privacy,
         golfer_count,
+        max_teams,
         teams=[],
         golfers=[]
     }){
@@ -99,8 +99,9 @@ class League {
         this.end_date = end_date,
         this.privacy = privacy,
         this.golfer_count = golfer_count,
-        this.teams = teams,
-        this.golfers = golfers
+        this.max_teams = max_teams,
+        this.teams = teams.map(t => new Team(t))
+        this.golfers = golfers.map(g => new Golfer(g))
     }
 
     static async newLeague(league_name,start_date,end_date,privacy,golfer_count){
@@ -121,7 +122,7 @@ class League {
 
     static async getLeague(league_id){
         const res = await axios.get(`${BASE_URL}/leagues/${league_id}`)
-        const {league} = res.data
+        const league = res.data
         return new League({
             id:league.id,
             league_name:league.league_name,
@@ -157,15 +158,13 @@ class Team {
         team_name,
         user_id,
         league_id,
-        created_at,     
         golfers=[]
-    }){
+        }){
         this.id = id,
         this.team_name = team_name,
         this.user_id =user_id,
         this.league_id = league_id,
-        this.created_at = created_at,
-        this.golfers = golfers
+        this.golfers = golfers.map(g => new Golfer(g))
     }
 
     static async createTeam(team_name, league_id, user_id){
@@ -178,7 +177,67 @@ class Team {
         const res = await axios.get(`${BASE_URL}/teams/${teamId}`)
         return new Team(res.data.team)
     }
+
+    async addOrDeleteGolferToTeam(golfer, type){
+        if(type == "ADD") {
+            const res = await axios.post(`${BASE_URL}/teams/${this.id}/golfers/${golfer.id}`)
+            this.golfers.push(golfer)
+        }
+
+        if(type == "DELETE") {
+            const res = await axios.delete(`${BASE_URL}/teams/${this.id}/golfers/${golfer.id}`)
+            this.golfers = this.golfers.filter(g => g !== golfer)
+        }
+    }
+
+    async addOrRemoveFromQueue(golferId){
+        let clickedGolfer = golferList.find(g => {g.id == golferId})
+        
+        for(let golfer of this.queue){
+            if(golfer==clickedGolfer){
+                this.queue = this.queue.filter(g => golfer !== clickedGolfer)
+            } else {
+                this.queue.push(clickedGolfer)
+            }
+        }
+    }
 }
+
+class TeamList {
+    constructor(teams) {
+        this.teams = teams;
+    }
+
+    static async getTeamsInLeague(leagueId) {
+        const res = await axios.get(`${BASE_URL}/leagues/${leagueId}/teams`);
+        console.log(res)
+        const teams = res.data.teams.map(t => {
+            const golfers = t.golfers.map(g => {
+                return new Golfer({
+                    id: g.id,
+                    first_name: g.first_name,
+                    last_name: g.last_name
+                });
+            });
+            return new Team({
+                id: t.id,
+                team_name: t.team_name,
+                user_id: t.user_id,
+                league_id: t.league_id,
+                created_at: t.created_at,
+                golfers: golfers
+            });
+        });
+
+        return new TeamList(teams);
+    }
+}
+
+
+
+
+
+
 
 class Golfer {
     constructor({
@@ -195,7 +254,7 @@ class Golfer {
     static async getGolfer(golferId){
         const res = await axios.get(`${BASE_URL}/golfers/${golferId}`)
         const {golfer} = res.data
-        new Golfer({
+        return new Golfer({
             id:golfer.id,
             first_name: golfer.first_name,
             last_name: golfer.last_name
@@ -211,8 +270,8 @@ class GolferList{
     static async getAllGolfers(){
         const res = await axios.get(`${BASE_URL}/golfers`)
         const golfers = res.data.golfers.map(g => {
-            const {golfer} = res.data
-            new Golfer({
+            const {golfer} = g
+            return new Golfer({
                 id:golfer.id,
                 first_name: golfer.first_name,
                 last_name: golfer.last_name
@@ -223,12 +282,12 @@ class GolferList{
 
     static async getAvailableGolfers(league_id){
         const res = await axios.get(`${BASE_URL}/leagues/${league_id}/golfers/available`)
+        console.log(res)
         const golfers = res.data.golfers.map(g => {
-            const {golfer} = res.data
-            new Golfer({
-                id:golfer.id,
-                first_name: golfer.first_name,
-                last_name: golfer.last_name
+            return new Golfer({
+                id:g.id,
+                first_name: g.first_name,
+                last_name: g.last_name
             })
         })
         return new GolferList(golfers)

@@ -6,9 +6,59 @@
     <title>{% block title %} {% endblock %}</title>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM' crossorigin='anonymous'>,
-    <link href='style.css' rel='stylesheet'>
+    <link href='/static/css/style.css' rel='stylesheet'>
 </head>
 <body>
+
+    <nav class="navbar navbar-expand-lg bg-body-tertiary stick-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/golfantasy">
+                <img src="/static/images/golf-ball-logo-2.png" alt="Bootstrap" width="30" height="24" class="d-inline-block align-text-top"> Golfantasy
+            </a>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <!-- <div class="collapse navbar-collapse" id="navbarNavDropdown"> -->
+            <ul class="navbar-nav justify-content-end">
+              {% if not g.user %}
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="/golfantasy/signup">Signup</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" aria-current="page" href="/golfantasy/login">Login</a>
+                </li>
+              {% else %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    Leagues
+                    </a>
+                    <ul class="dropdown-menu">
+                        {% for league in g.user.leagues%}
+                    <li><a class="dropdown-item league-links" data-league_id="{{league.id}}" href="/golfantasy/leagues/{{league.id}}">{{league.league_name}}"</a></li>
+                        {% endfor %}
+                    <li><a class="dropdown-item" href="/golfantasy/leagues">Start/join a new league!</a></li>
+                    </ul>
+                </li>
+                <li class="nav-item">
+                    <a href="/golfantasy/users/{{g.user.id}}"><img class="nav-link" src="{{g.user.profile_url}} "" id="nav-user-image" alt="{{g.user.username}}"></a>
+                </li>
+                <li class="nav-item">
+                    <form action="/golfantasy/logout" id="logout_form" method="post">
+                        <button class="nav-link" >Logout</button>
+                    </form>
+                </li>
+
+              {% endif %}
+              
+                
+              
+            </ul>
+          <!-- </div> -->
+        </div>
+      </nav>
+
+
+
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
     <div class=flashes>
@@ -20,8 +70,11 @@
 {% endwith %}
     {% block content %}
     {% endblock %}
+    <script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
     <script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js' integrity='sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz' crossorigin='anonymous'></script>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
     <script src='/static/models.js'></script>
     <script src='/static/main.js'></script>
+    <script src='/static/draft_functions.js'></script>
 </body>
 </html>

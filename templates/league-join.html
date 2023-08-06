@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %} Join a League! {% endblock %}
+{% block content %}
+<div class="container-fluid">
+  <h2>Join a League</h2>
+  <div class="row justify-content-md-center">
+    <div class="col">
+      <h3 class="join-message">Private</h3>
+      <form method="POST" id="join_private_league_form">
+        {{ private_form.hidden_tag() }}
+  
+        {% for field in private_form if field.widget.input_type != 'hidden' %}
+          {% for error in field.errors %}
+            <span class="text-danger">{{ error }}</span>
+          {% endfor %}
+          {{ field(placeholder=field.label.text, class="form-control") }}
+        {% endfor %}
+  
+        <button class="btn btn-primary btn-lg btn-block">Join!</button>
+      </form>
+    </div>
+    <div class="col">
+      <h3 class="join-message">Public</h3>
+      <form method="POST" id="join_public_league_form">
+        {{ public_form.csrf_token }}
+        
+        {% for field in public_form if field.widget.input_type != 'hidden'%}
+        <p>
+        {{field.label}}
+        {{field}}
+        
+        
+        {% for err in field.errors %}
+        {{err}}
+        {% endfor %}
+        </p>
+        {% endfor %}
+        
+        <button class="btn btn-primary btn-lg btn-block">Join!</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+
+{% endblock %}

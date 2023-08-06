@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %} {{league.league_name}} Lobby {% endblock %}
+{% block content %}
+
+
+<div class="container-fluid">
+    <h2> Welcome to {{league.league_name}}!</h2>
+    <div id="countdown">
+        <p>The draft will begin in:</p>
+    </div>
+    <h4>League Manager:</h4>
+    {% if league.league_manager_id == g.user.id %}
+    <form action="/golfantasy/leagues/{{league.id}}/draft" method="post">
+        <button id="draft-start-button">Start draft now!</button>
+    </form>
+    {% endif %}
+    
+    <div col="row">
+        <h4>Teams</h4>
+        <div class="col">
+            <ul>
+                {% for team in league.teams%}
+                    <li><a href="/golfantasy/teams/{{team.id}}">{{team.team_name}}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+
+
+
+{% endblock %}
+
+<script>
+    $(document).ready(function(){
+      instantiateCurrentLeague()
+    })
+</script>

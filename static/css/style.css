@@ -1,0 +1,6 @@
+#nav-user-image {
+    max-height: 50px; /* Adjust this value to your desired height */
+    border: 1px solid #ccc; /* Add a slim grey border */
+    border-radius: 5px; /* Round the edges slightly */
+    padding: 3px; /* Optional: Add some padding inside the border */
+}

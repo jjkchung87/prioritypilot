@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %} Welcome to Golfantasy! {% endblock %}
+{% block content %}
+
+<link rel="stylesheet" src="//cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+
+
+
+<div class="container-md " id="main-dashboard">
+    <div class="row">
+            <div class="col col-6" id="dasboard-league-scores">
+                <h3>League Scores</h3>
+                {% if not g.user.leagues %}
+                <a href="/golfantasy/leagues">Join a league today!</a>
+                {% else %}
+                    {% for league in g.user.leagues %}
+                        <div class="row">
+                            <div class="col">
+                                <a href="/golfantasy/leagues/{{league.id}}" class="league-links" data-league_id="{{league.id}}">{{league.league_name}}</a>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <div class="col col-6" id="dashboard-trending-golfers">
+                <h3>Trending Golfers</h3>
+                    <table id="myTable" class="display">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Avg Score vs. Par (last 30 days)</th>
+                                <th>Avg Score vs. Par (prior 30 days)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for golfer in results %}
+                            <tr>
+                                <td>{{golfer.first_name}} {{golfer.last_name}}</td>
+                                <td>{{golfer.avg_score_vs_par_last_30}}</td>
+                                <td>{{golfer.avg_score_vs_par_prior_30}}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+            </div>
+    </div>
+</div>
+
+{% endblock %}
+
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.js">
+    $(document).ready( function () {
+    $('#myTable').DataTable();
+    } );
+</script>
