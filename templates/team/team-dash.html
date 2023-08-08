@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% block title %} {{team.team_name}} {% endblock %}
+{% block content %}
+
+<div class="container-fluid">
+    <h3>{{team.team_name}}</h3>
+    <div class="row">
+        <div class="col">
+            <table>
+                <theader>
+                    <tr>
+                        <th>Golfer</th>
+                        <th>Score</th>
+                    </tr>
+                </theader>
+                <tbody>
+                {% for golfer in results%}
+                    <tr>
+                        <td>{{golfer.full_name}}</td>
+                        <td>{{golfer.total_score_vs_par}}</td>
+                    </tr>    
+                {% endfor %}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</div>
+
+
+
+{% endblock %}

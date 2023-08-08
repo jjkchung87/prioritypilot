@@ -228,7 +228,7 @@ class Team (db.Model):
     id = db.Column(db.Integer,
                    primary_key=True)
     
-    team_name = db.Column(db.String(30),
+    team_name = db.Column(db.Text,
                             nullable=False,
                             unique=True)
     

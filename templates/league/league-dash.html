@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %} {{league.league_name}} {% endblock %}
+{% block content %}
+League status:{{league.status}}
+<div class="container-fluid">
+    <h3>{{league.league_name}}</h3>
+    <div class="row">
+        <div class="col col-6" id="league-dash-teams">
+            <h4>League Leaderboard</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Team</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in results %}
+                    <tr>
+
+                            <td>
+                                <a href="/golfantasy/teams/{{result.id}}">
+                                {{result.team_name}}
+                                </a>
+                            </td>
+                            <td>{{result.total_score_vs_par}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="col" id="league-top-golfers">
+            <h4>Top Golfers</h4>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Golfer</th>
+                        <th>Team</th>
+                        <th>Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in golfer_results %}
+                    <tr>
+
+                            <td>
+                                <a href="/golfantasy/golfer/{{result.id}}">
+                                {{result.full_name}}
+                                </a>
+                            </td>
+                            <td>{{result.team_name}}</td>
+                            <td>{{result.total_score_vs_par}}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+<script>
+    $(document).ready(function(){
+      instantiateCurrentLeague()
+    })
+</script>

@@ -3,15 +3,20 @@ import os
 from flask import Flask, render_template, request, flash, redirect, session, g, jsonify, url_for
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 import requests
 from models import db, connect_db, User, League, Team, Golfer, Tournament, UserGolfer, TeamGolfer, TournamentGolfer, UserLeague, LeagueGolfer
 from forms import SignUpForm, LoginForm, CreateLeagueForm, JoinPrivateLeagueForm, JoinPublicLeagueForm, CreateTeamForm, UserUpdateForm
 from datetime import datetime, timedelta
 from flask_socketio import SocketIO, emit
 
+
+ 
 app = Flask(__name__)
+
+socketio = SocketIO()
 socketio = SocketIO(app)
+
 
 # Get DB_URI from environ variable (useful for production/testing) or,
 # if not set there, use development local db.
@@ -29,6 +34,7 @@ app.app_context().push()
 connect_db(app)
 
 CURR_USER_KEY = "curr_user"
+
 
 @app.before_request
 def add_user_to_g():
@@ -65,53 +71,43 @@ def show_homepage():
     """Show homepage"""
 
     if not g.user:
-        return render_template("anon-home.html")
+        return render_template("/home/anon-home.html")
     
-   # Calculate the date ranges for the last 30 days and prior 30 days
-    last_30_days_end = datetime.utcnow()
-    last_30_days_start = last_30_days_end - timedelta(days=30)
-    prior_30_days_end = last_30_days_start - timedelta(days=1)
-    prior_30_days_start = prior_30_days_end - timedelta(days=30)
+    # Get the maximum tournament date from the query result
+    max_tournament_date_result = db.session.query(func.max(Tournament.date)).first()
+    max_tournament_date = max_tournament_date_result[0]  # Extract the datetime value
 
-    # Subquery to get the average score versus par for the last 30 days
-    subquery_last_30_days = (db.session.query(TournamentGolfer.golfer_id,
-                                            func.avg(TournamentGolfer.score_vs_par).label('avg_score_vs_par_last_30_days'))
-                            .join(Tournament, and_(TournamentGolfer.tournament_name == Tournament.tournament_name,
-                                                    TournamentGolfer.calendar_year == Tournament.calendar_year,
-                                                    TournamentGolfer.tournament_dg_id == Tournament.dg_id))
-                            .filter(and_(Tournament.date >= last_30_days_start,
-                                        Tournament.date <= last_30_days_end))
-                            .group_by(TournamentGolfer.golfer_id)
-                            .subquery())
+    # Format the datetime as a string
+    formatted_datetime = max_tournament_date.strftime("%Y-%m-%d %H:%M:%S")
 
-    # Subquery to get the average score versus par for the prior 30 days
-    subquery_prior_30_days = (db.session.query(TournamentGolfer.golfer_id,
-                                            func.avg(TournamentGolfer.score_vs_par).label('avg_score_vs_par_prior_30_days'))
-                            .filter(and_(Tournament.date >= prior_30_days_start,
-                                        Tournament.date <= prior_30_days_end))
-                            .group_by(TournamentGolfer.golfer_id)
-                            .subquery())
+    latest_tournament_id_subquery = (
+        db.session.query(Tournament.id)
+        .filter(Tournament.date == max_tournament_date)
+        .filter(Tournament.tour == "pga")
+    ).scalar()  # Use .scalar() to get the single value instead of a tuple
 
-    # Main query to get the final table
-    query = (db.session.query(subquery_last_30_days.c.golfer_id,
-                            subquery_last_30_days.c.avg_score_vs_par_last_30_days,
-                            subquery_prior_30_days.c.avg_score_vs_par_prior_30_days)
-            .join(subquery_prior_30_days, subquery_last_30_days.c.golfer_id == subquery_prior_30_days.c.golfer_id)
-            .order_by(subquery_last_30_days.c.avg_score_vs_par_last_30_days.asc())
-            .all())
+    tournament = Tournament.query.get(latest_tournament_id_subquery)
 
-    # Output the results
+    latest_tournament_results = (
+        db.session.query(
+            func.concat(Golfer.first_name, ' ', Golfer.last_name).label("full_name"),
+            func.sum(TournamentGolfer.score_vs_par).label("total_score_vs_par")
+        )
+        .join(Tournament, and_(
+            Tournament.id == TournamentGolfer.tournament_id,
+            Tournament.tournament_name == TournamentGolfer.tournament_name,
+            Tournament.calendar_year == TournamentGolfer.calendar_year,
+            Tournament.dg_id == TournamentGolfer.tournament_dg_id
+        ))
+        .filter(Tournament.date == max_tournament_date)
+        .filter(Tournament.tour == "pga")
+        .join(Golfer, Golfer.id == TournamentGolfer.golfer_id)  # Specify the join condition here
+        .group_by("full_name")
+        .order_by("total_score_vs_par")
+    ).all()
 
-    results = []
-    for golfer_id, avg_score_vs_par_last_30_days, avg_score_vs_par_prior_30_days in query:
-        golfer = Golfer.query.get(golfer_id)
-        results.append({"id":golfer.id,
-                        "first_name":golfer.first_name,
-                        "last_name":golfer.last_name,
-                        "avg_score_vs_par_last_30": int(avg_score_vs_par_last_30_days),
-                        "avg_score_vs_par_prior_30": int(avg_score_vs_par_prior_30_days)})
 
-    return render_template("home.html", results=results)
+    return render_template("/home/home.html", tournament = tournament, results=latest_tournament_results)
 
 #*******************************************************************************************************************************
 #User Sign-up / Login / Logout
@@ -136,7 +132,7 @@ def handle_signup_page():
 
         return redirect(url_for("show_homepage"))
     
-    return render_template("signup.html", form=form)
+    return render_template("/user/signup.html", form=form)
 
 
 @app.route("/golfantasy/login", methods=["GET", "POST"])
@@ -160,7 +156,7 @@ def handle_login_page():
 
         return redirect(url_for("show_homepage"))
     
-    return render_template("login.html", form=form)
+    return render_template("/user/login.html", form=form)
 
 @app.route("/golfantasy/update", methods = ["GET, POST"])
 def update_user_details():
@@ -197,7 +193,7 @@ def show_user(user_id):
     
     user = User.query.get_or_404(user_id)
 
-    return render_template("user.html",user=user)
+    return render_template("/user/user.html",user=user)
 
 #*******************************************************************************************************************************
 #League Creation / Selection:
@@ -209,7 +205,7 @@ def show_leagues_first_page():
     if not g.user:
         return redirect(url_for("show_homepage"))
     
-    return render_template("league-create-or-join.html")
+    return render_template("/league/league-create-or-join.html")
 
 
 @app.route("/golfantasy/leagues/create", methods=["GET", "POST"])
@@ -245,7 +241,7 @@ def handle_league_creation():
 
         return redirect(f"/golfantasy/leagues/{league.id}/teams")
     
-    return render_template('league-create.html', form=form, user=g.user)
+    return render_template('/league/league-create.html', form=form, user=g.user)
 
 @app.route("/golfantasy/leagues/join", methods=["GET", "POST"])
 def handle_join_league_page():
@@ -305,7 +301,7 @@ def handle_join_league_page():
             return redirect(f"/golfantasy/leagues/{league.id}/teams")
         
   
-    return render_template("league-join.html", private_form=private_form, public_form=public_form)
+    return render_template("/league/league-join.html", private_form=private_form, public_form=public_form)
 
 
 
@@ -339,7 +335,7 @@ def create_team(league_id):
         db.session.commit()
         return redirect(f"/golfantasy/leagues/{league.id}")
     
-    return render_template("team-create.html", form=form, league=league, user=user)
+    return render_template("/team/team-create.html", form=form, league=league, user=user)
 
 #*******************************************************************************************************************************
 #League Routes:
@@ -362,20 +358,66 @@ def direct_to_correct_league_page(league_id):
         if team is None:
             return redirect(f"/golfantasy/users/{g.user.id}")
         else:
-            return render_template("league-dash.html", league=league, team=team)
+            
+            league_results = (
+                db.session.query(
+                    Team.team_name,
+                    Team.id,
+                    func.sum(TournamentGolfer.score_vs_par).label("total_score_vs_par")
+                )
+                .join(Tournament, and_(
+                    Tournament.id == TournamentGolfer.tournament_id,
+                    Tournament.tournament_name == TournamentGolfer.tournament_name,
+                    Tournament.calendar_year == TournamentGolfer.calendar_year,
+                    Tournament.dg_id == TournamentGolfer.tournament_dg_id
+                ))
+                .filter(Tournament.date >= league.start_date, Tournament.date <= league.end_date)
+                .join(Golfer, Golfer.id == TournamentGolfer.golfer_id)
+                .join(TeamGolfer, TeamGolfer.golfer_id == Golfer.id)
+                .join(Team,Team.id == TeamGolfer.team_id)
+                .filter(Team.league_id == league.id)
+                .group_by(Team.team_name, Team.id)
+                .order_by("total_score_vs_par")
+            ).all()
+
+            top_golfers_in_league = (
+                db.session.query(
+                    func.concat(Golfer.first_name," ", Golfer.last_name).label("full_name"),
+                    Team.team_name,
+                    func.sum(TournamentGolfer.score_vs_par).label("total_score_vs_par")
+                )
+                .join(Tournament, and_(
+                Tournament.id == TournamentGolfer.tournament_id,
+                Tournament.tournament_name == TournamentGolfer.tournament_name,
+                Tournament.calendar_year == TournamentGolfer.calendar_year,
+                Tournament.dg_id == TournamentGolfer.tournament_dg_id
+                ))
+                .filter(Tournament.date >= league.start_date, Tournament.date <= league.end_date)
+                .join(Golfer, Golfer.id == TournamentGolfer.golfer_id)
+                .join(TeamGolfer, TeamGolfer.golfer_id == Golfer.id)
+                .join(Team, Team.id == TeamGolfer.team_id)
+                .filter(Team.league_id == league.id)
+                .group_by("full_name", Team.team_name)
+                .order_by("total_score_vs_par")
+            ).all()
+
+
+            return render_template("/league/league-dash.html", league=league, team=team, results=league_results, golfer_results = top_golfers_in_league)
         
     if league.status == "in-draft":
         if team is None:
             return redirect(f"/golfantasy/leagues/{league.id}/teams")
         
         else:
-            return render_template("league-draft.html", league=league, team=team)
+            return render_template("/league/league-draft.html", league=league, team=team)
         
     if league.status == "pre-draft":
         if team is None:
             return redirect(f"/golfantasy/leagues/{league.id}/teams")
         else:
-            return render_template("league-lobby.html", league=league, team=team)
+            countdown_date = league.start_date
+            return render_template("/league/league-lobby.html", league=league, team=team, countdown_date = countdown_date)
+
 
 @app.route("/golfantasy/leagues/<int:league_id>/draft", methods=["POST"])
 def manual_start_draft(league_id):
@@ -424,7 +466,7 @@ def manual_start_draft(league_id):
 #         if team is None:
 #             return redirect(f'/golfantasy/leagues/{league.id}/teams')
         
-#         return render_template("league-lobby.html", league=league, team=team)
+#         return render_template("/league/league-lobby.html", league=league, team=team)
 
 
 # @app.route("/golfantasy/leagues/<int:league_id>/draft")
@@ -451,7 +493,7 @@ def manual_start_draft(league_id):
 #         if team is None:
 #             return redirect(f'/golfantasy/leagues/{league.id}/teams')
         
-#         return render_template("league-draft.html", league=league, team=team)
+#         return render_template("/league/league-draft.html", league=league, team=team)
 
 
 #*******************************************************************************************************************************
@@ -482,8 +524,28 @@ def manual_start_draft(league_id):
 
 #         if team is None:
 #             return redirect(f'/golfantasy/leagues/{league.id}/teams')
+        
+#         league_results = (
+#             db.session.query(
+#                 Team.team_name,
+#                 func.sum(TournamentGolfer.score_vs_par).label("total_score_vs_par")
+#             )
+#             .join(Tournament, and_(
+#                 Tournament.id == TournamentGolfer.tournament_id,
+#                 Tournament.tournament_name == TournamentGolfer.tournament_name,
+#                 Tournament.calendar_year == TournamentGolfer.calendar_year,
+#                 Tournament.dg_id == TournamentGolfer.tournament_dg_id
+#             ))
+#             .filter(Tournament.date >= league.start_date.strftime("%Y-%m-%d %H:%M:%S"), Tournament.date <= league.end_date.strftime("%Y-%m-%d %H:%M:%S"))
+#             .join(Golfer, Golfer.id == TournamentGolfer.golfer_id)
+#             .join(TeamGolfer, TeamGolfer.golfer_id == Golfer.id)
+#             .join(Team,Team.id == TeamGolfer.team_id)
+#             .filter(Team.league_id == league.id)
+#             .group_by(Team.team_name)
+#             .order_by("total_score_vs_par")
+#         ).all()
 
-#         return render_template("league-dash.html", league=league, team=team)
+#         return render_template("/league/league-dash.html", league=league, team=team, results=league_results)
 
 @app.route("/golfantasy/teams/<team_id>")
 def show_team_dash(team_id):
@@ -493,9 +555,27 @@ def show_team_dash(team_id):
             return redirect(url_for(show_homepage))
 
     team = Team.query.get_or_404(team_id)
-    user = User.query.get(g.user.id)
+    league = League.query.get(team.league_id)
 
-    return render_template("team-dash.html", team=team, user=user)
+    team_results = (
+        db.session.query(
+            func.concat(Golfer.first_name," ", Golfer.last_name).label("full_name"),
+            func.sum(TournamentGolfer.score_vs_par).label("total_score_vs_par")
+        )
+        .join(Tournament, and_(
+            Tournament.id == TournamentGolfer.tournament_id,
+            Tournament.tournament_name == TournamentGolfer.tournament_name,
+            Tournament.calendar_year == TournamentGolfer.calendar_year,
+            Tournament.dg_id == TournamentGolfer.tournament_dg_id
+        ))
+        .filter(Tournament.date >= league.start_date, Tournament.date <= league.end_date)
+        .join(Golfer, Golfer.id == TournamentGolfer.golfer_id)
+        .join(TeamGolfer, TeamGolfer.golfer_id == Golfer.id)
+        .filter(TeamGolfer.team_id == team.id)
+        .group_by("full_name")
+    ).all()
+
+    return render_template("/team/team-dash.html", team=team, results=team_results)
 
 @app.route("/golfantasy/golfers/<int:golfer_id>")
 def show_golfer(golfer_id):
@@ -507,7 +587,7 @@ def show_golfer(golfer_id):
     golfer = Golfer.query.get_or_404(golfer_id)
     user = User.query.get(g.user.id)
 
-    return render_template("golfer.html", golfer=golfer, user=user)
+    return render_template("/golfer/golfer.html", golfer=golfer, user=user)
 
 @app.route("/golfantasy/golfers")
 def show_golfers():
@@ -519,7 +599,7 @@ def show_golfers():
     golfers = Golfer.query.all()
     user = User.query.get(g.user.id)
 
-    return render_template("golfers.html", golfers=golfers, user=user)
+    return render_template("/golfer/golfers.html", golfers=golfers, user=user)
 
 
 
