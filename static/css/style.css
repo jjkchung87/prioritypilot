@@ -4,3 +4,43 @@
     border-radius: 5px; /* Round the edges slightly */
     padding: 3px; /* Optional: Add some padding inside the border */
 }
+
+body{
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: 200;
+}
+
+#nav-bar-name{
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: 900;
+}
+
+#nav-link {
+    font-family: 'Lexend Deca', sans-serif;
+    font-weight: 200;
+}
+
+table {
+    width: 100%;
+}
+
+
+.golfer-image {
+    max-height: 40px;
+}
+
+#navbar a {
+    vertical-align: middle;
+}
+
+#nav-iteam {
+    vertical-align: middle;
+}
+
+.left-align {
+    text-align: left !important;
+}
+
+.bullet-balls {
+    max-width: 10px;
+}

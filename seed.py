@@ -34,19 +34,39 @@ test_user = User.signup(username, email, first_name, last_name, password)
 
 test_leagues = []
 
+league_name = "Pre-draft Private League"
+start_date = "2023-08-31"
+end_date = "2023-9-30"
+privacy = "private"
+max_teams = 2
+golfer_count = 3
+league_manager_id = test_user.id
+draft_completed = False
+pre_draft_private_league = League.create_new_league(league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed)
+
+league_name = "Pre-draft Public League"
+start_date = "2023-08-31"
+end_date = "2023-9-30"
+privacy = "public"
+max_teams = 2
+golfer_count = 3
+league_manager_id = test_user.id
+draft_completed = False
+pre_draft_public_league = League.create_new_league(league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed)
+
 league_name = "In-draft League"
 start_date = datetime.utcnow()
 end_date = "2023-9-30"
 privacy = "public"
-max_teams = 4
-golfer_count = 3
+max_teams = 2
+golfer_count = 5
 league_manager_id = test_user.id
 draft_completed = False
 in_draft_league = League.create_new_league(league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed)
 
 league_name = "In-play League"
-start_date = "2023-08-01"
-end_date = "2023-9-30"
+start_date = "2023-07-01"
+end_date = "2023-8-31"
 privacy = "public"
 max_teams = 4
 golfer_count = 3
@@ -54,11 +74,21 @@ league_manager_id = test_user.id
 draft_completed = True
 in_play_league = League.create_new_league(league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed)
 
-db.session.add_all([in_draft_league,in_play_league])
-db.session.commit()
+league_name = "End-play League"
+start_date = "2023-06-15"
+end_date = "2023-8-05"
+privacy = "public"
+max_teams = 4
+golfer_count = 4
+league_manager_id = test_user.id
+draft_completed = True
+end_play_league = League.create_new_league(league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed)
+
+
 
 test_leagues.append(in_draft_league)
 test_leagues.append(in_play_league)
+test_leagues.append(end_play_league)
 
 # Create 20 fake users
 for i in range(2,22):
@@ -67,9 +97,8 @@ for i in range(2,22):
     last_name = fake.last_name()
     email = f"{username}@example.com"
     password = f"password{i}"
-    profile_url = fake.url()
 
-    user = User.signup(username, email, first_name, last_name, password, profile_url)
+    user = User.signup(username, email, first_name, last_name, password)
     fake_users.append(user)
 
 
@@ -80,6 +109,10 @@ for user in in_draft_league_users:
 in_play_league_users = fake_users[in_draft_league.max_teams:in_draft_league.max_teams + in_play_league.max_teams-1]
 for user in in_play_league_users:
     user.leagues.append(in_play_league)
+
+end_play_league_users = fake_users[in_draft_league.max_teams+in_play_league.max_teams:in_draft_league.max_teams + in_play_league.max_teams + end_play_league.max_teams-1]
+for user in end_play_league_users:
+    user.leagues.append(end_play_league)
 
 db.session.commit()
 
@@ -132,7 +165,7 @@ for league in test_leagues:
     if league.status in ["in-draft", "in-play", "end-play"]:
         for user in league.users:
             team = Team(
-                team_name=f"{user.username}'s Team (League: {league.league_name})",
+                team_name=f"{user.username}'s Team ({league.league_name})",
                 user_id=user.id,
                 league_id=league.id
             )
@@ -144,7 +177,7 @@ for league in test_leagues:
         for user in league.users:
             if random.random() < 0.9:  # Randomly decide if the user should have a team
                 team = Team(
-                    team_name=f"{user.username}'s Team (League: {league.league_name})",
+                    team_name=f"{user.username}'s Team ({league.league_name})",
                     user_id=user.id,
                     league_id=league.id
                 )
@@ -158,7 +191,7 @@ play_leagues = [league for league in test_leagues if league.status in ["in-play"
 
 # Retrieve ids for existing golfers from the database
 
-golfer_ids = [golfer.id for golfer in Golfer.query.all()]
+golfer_ids = [golfer.id for golfer in Golfer.query.filter(Golfer.owgr<=50).all()]
 
 # Assign golfers to teams in each of the "in-play" or "end-play" leagues
 for league in play_leagues:

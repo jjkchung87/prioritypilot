@@ -1,25 +1,31 @@
 <!DOCTYPE html>
-<html lang='en'>
+<html lang='en' data-bs-theme="dark">
 <head>
     <meta charset='UTF-8'>
     <meta http-equiv='X-UA-Compatible' content='IE=edge'>
     <title>{% block title %} {% endblock %}</title>
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet' integrity='sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM' crossorigin='anonymous'>,
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-4bw+/aepP/YC94hEpVNVgiZdgIC5+VKNBQNGCHeKRQN+PtmoHDEXuppvnDJzQIu9" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" />
     <link href='/static/css/style.css' rel='stylesheet'>
-</head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@200;500;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 <body>
 
     <nav class="navbar navbar-expand-lg bg-body-tertiary stick-top">
-        <div class="container-fluid">
+        <div class="container-fluid d-flex align-items-center">
             <a class="navbar-brand" href="/golfantasy">
-                <img src="/static/images/golf-ball-logo-2.png" alt="Bootstrap" width="30" height="24" class="d-inline-block align-text-top"> Golfantasy
+                <img src="/static/images/golf-ball-logo-2.png" alt="Bootstrap" width="70" height="70" class="d-inline-block align-text-middle"> 
+                <span class="ms-2 fs-1" id="nav-bar-name">Golfantasy</span>
             </a>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNavDropdown" aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
           </button>
-          <!-- <div class="collapse navbar-collapse" id="navbarNavDropdown"> -->
-            <ul class="navbar-nav justify-content-end">
+          <div class="collapse navbar-collapse" id="navbarNavDropdown">
+        
+            <ul class="navbar-nav justify-content-end d-flex align-items-center">
               {% if not g.user %}
                 <li class="nav-item">
                     <a class="nav-link active" aria-current="page" href="/golfantasy/signup">Signup</a>
@@ -28,32 +34,32 @@
                     <a class="nav-link active" aria-current="page" href="/golfantasy/login">Login</a>
                 </li>
               {% else %}
-                <li class="nav-item dropdown">
+                <li class="nav-item dropdown" >
                     <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                     Leagues
                     </a>
                     <ul class="dropdown-menu">
                         {% for league in g.user.leagues%}
-                    <li><a class="dropdown-item league-links" data-league_id="{{league.id}}" href="/golfantasy/leagues/{{league.id}}">{{league.league_name}}"</a></li>
+                    <li><a class="dropdown-item league-links" data-league_id="{{league.id}}" href="/golfantasy/leagues/{{league.id}}">{{league.league_name}}</a></li>
                         {% endfor %}
                     <li><a class="dropdown-item" href="/golfantasy/leagues">Start/join a new league!</a></li>
                     </ul>
                 </li>
                 <li class="nav-item">
-                    <a href="/golfantasy/users/{{g.user.id}}"><img class="nav-link" src="{{g.user.profile_url}} "" id="nav-user-image" alt="{{g.user.username}}"></a>
+                    <a class="nav-link active" href="/golfantasy/users/{{g.user.id}}">
+    
+                        <img class="nav-link" src="{{g.user.profile_url}} "" id="nav-user-image" alt="{{g.user.username}}">
+                    </a>
                 </li>
                 <li class="nav-item">
                     <form action="/golfantasy/logout" id="logout_form" method="post">
                         <button class="nav-link" >Logout</button>
                     </form>
                 </li>
-
               {% endif %}
               
-                
-              
             </ul>
-          <!-- </div> -->
+
         </div>
       </nav>
 
@@ -61,9 +67,9 @@
 
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
-    <div class=flashes>
+    <!-- <div class=flashes> -->
         {% for category, message in messages %}
-            <div class='{{ category }}''>{{ message }}</div>
+            <div class="alert alert-{{category}}">{{ message }}</div>
         {% endfor %}
     </div>
 {% endif %}
@@ -71,11 +77,57 @@
     {% block content %}
     {% endblock %}
     <script src="https://code.jquery.com/jquery-3.7.0.min.js" integrity="sha256-2Pmvv0kuTBOenSvLm6bvfBSSHrUJ+3A7x6P5Ebd07/g=" crossorigin="anonymous"></script>
-    <script src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js' integrity='sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz' crossorigin='anonymous'></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js" integrity="sha384-HwwvtgBNo3bZJJLYd8oVXjrBZt8cqVSpeBNS5n7C8IVInixGAoxmnlMuBnhbgrkm" crossorigin="anonymous"></script>
     <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
-    <script src='/static/models.js'></script>
-    <script src='/static/main.js'></script>
-    <script src='/static/draft_functions.js'></script>
+    <script src="https://cdn.socket.io/4.6.0/socket.io.min.js" integrity="sha384-c79GN5VsunZvi+Q/WObgk2in0CbZsHnjEqvFxC5DxHn9lTfNce2WW6h2pH6u/kF+" crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    
+    <script src='/static/js/models.js'></script>
+    <script src='/static/js/main.js'></script>
+    
+    <script>
+        $(document).ready( function () {
+            $('#latestEventGolfers').DataTable({        
+                columnDefs: [
+                    {
+                        targets: [0, 1],
+                        className: 'left-align'
+                    }
+                ]                
+            })
+  
+
+            $('#topGolfers').DataTable({        
+                columnDefs: [
+                    {
+                        targets: [0, 1],
+                        className: 'left-align'
+                    }
+                ],
+                order: [[2, 'asc']] 
+            })
+         
+            $('#availableGolfersTable').DataTable({        
+                "scrollY": "400px",
+                "scrollCollapse": true,
+                "paging": false,
+                columnDefs: [
+                    {
+                        targets: [1],
+                        className: 'left-align'
+                    },
+                    {
+                        targets: [0], // Index of the column to be sorted numerically
+                        type: 'num' // Use numerical sorting
+                    }
+                ]       
+            })
+    
+        });
+   
+
+
+    </script>
 
     
 </body>

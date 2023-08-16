@@ -1,13 +1,28 @@
 {% extends 'base.html' %}
 {% block title %} {{league.league_name}} {% endblock %}
 {% block content %}
-League status:{{league.status}}
-<div class="container-fluid">
-    <h3>{{league.league_name}}</h3>
+
+<div class="container-fluid text-center">
+    <h3>{{ league.league_name }}</h3>
+    <p><b>League status: </b>{{ league.status }}</p>
+    <p><b>League start-date: </b>{{league.start_date.strftime('%B %d, %Y')}}</p>
+    <p><b>League end-date: </b>{{league.end_date.strftime('%B %d, %Y')}}</p>
+
+    {% if league.status == "end-play" %}
     <div class="row">
-        <div class="col col-6" id="league-dash-teams">
+        <div class="col">
+            <div class="alert alert-success" role="alert">
+                <p>League season complete.</p> 
+                <p><b>Congratulations {{league_leader}}!</b></p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col" id="league-dash-teams">
             <h4>League Leaderboard</h4>
-            <table>
+            <table class="table">
                 <thead>
                     <tr>
                         <th>Team</th>
@@ -18,20 +33,21 @@ League status:{{league.status}}
                     {% for result in results %}
                     <tr>
 
-                            <td>
-                                <a href="/golfantasy/teams/{{result.id}}">
+                            <td class="align-middle">
+                                <a class="link-light link-offset-2 link-offset-3-hover link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="/golfantasy/teams/{{result.id}}">
                                 {{result.team_name}}
                                 </a>
                             </td>
-                            <td>{{result.total_score_vs_par}}</td>
+                            <td class="align-middle">{{result.total_score_vs_par}}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+        <div class="col col-1"></div>
         <div class="col" id="league-top-golfers">
             <h4>Top Golfers</h4>
-            <table>
+            <table id="topGolfers" class="table">
                 <thead>
                     <tr>
                         <th>Golfer</th>
@@ -42,14 +58,17 @@ League status:{{league.status}}
                 <tbody>
                     {% for result in golfer_results %}
                     <tr>
-
-                            <td>
-                                <a href="/golfantasy/golfer/{{result.id}}">
-                                {{result.full_name}}
-                                </a>
-                            </td>
-                            <td>{{result.team_name}}</td>
-                            <td>{{result.total_score_vs_par}}</td>
+                        <td class="align-middle">
+                            <a class="link-light link-offset-2 link-offset-3-hover link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="/golfantasy/golfer/{{result.id}}">
+                            <img class="golfer-image" src="{{result.golfer_image_url}}">{{result.full_name}}
+                            </a>
+                        </td>
+                        <td class="align-middle">
+                            <a class="link-dark link-offset-2 link-offset-3-hover link-underline link-underline-opacity-0 link-underline-opacity-75-hover" href="/golfantasy/teams/{{result.id}}">
+                            {{result.team_name}}
+                            </a>
+                        </td >
+                        <td class="align-middle">{{result.total_score_vs_par}}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

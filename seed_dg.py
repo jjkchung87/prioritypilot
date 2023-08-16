@@ -1,6 +1,8 @@
 from models import db, Golfer, Tournament, TournamentGolfer, User, League, Team
 from app import app
 import requests
+from golfers_images import golfer_images
+
 
 # db.session.query(Golfer).delete()
 # db.session.query(Tournament).delete()
@@ -9,6 +11,8 @@ import requests
 db.session.rollback()
 db.drop_all()
 db.create_all()
+
+DEFAULT_GOLFER_URL = "https://png.pngtree.com/png-clipart/20210915/ourmid/pngtree-user-avatar-placeholder-black-png-image_3918427.jpg"
 
 #******************************************************************************************************************************************************************************
 #API Requests
@@ -20,19 +24,28 @@ API_KEY = '53f0ef0e0b15d5adc6a304967568'
 #******************************************************************************************************************************************************************************
 #GET GOLFERS
 
-res_golfers = requests.get(f"{BASE_URL}/get-player-list",params={"file_format": FILE_FORMAT,
-                                                             "key": API_KEY})
+# res_golfers = requests.get(f"{BASE_URL}/get-dg-rankings",params={"file_format": FILE_FORMAT,
+#                                                              "key": API_KEY})
 
-golfers = [{'name':golfer['player_name'].split(", "), 'dg_id':golfer['dg_id']} for golfer in res_golfers.json()]
+res_golfers = requests.get('https://feeds.datagolf.com/preds/get-dg-rankings?file_format=json&key=53f0ef0e0b15d5adc6a304967568')
+
+
+# golfers = [{'name':golfer['player_name'].split(", "), 'dg_id':golfer['dg_id']} for golfer in res_golfers.json()]
+
+golfers = [{'name':golfer['player_name'].split(", "), 'dg_id':golfer['dg_id'], 'owgr':golfer['owgr_rank']} for golfer in res_golfers.json()['rankings'] if golfer['owgr_rank'] != ""]
+
 
 for golfer in golfers:
     full_name = golfer['name']
     golfer['last_name'] = full_name[0]
     golfer['first_name'] = ' '.join(full_name[1:]) if len(full_name) > 1 else ''
-    del golfer['name']
-
-for golfer in golfers:
-    g = Golfer(first_name=golfer['first_name'], last_name=golfer['last_name'], dg_id=golfer['dg_id'])
+    golfer['golfer_image_URL'] = DEFAULT_GOLFER_URL  # Initialize with default URL
+    golfer['joint_full_name'] = golfer['first_name']+' '+golfer['last_name']
+    for gi in golfer_images:
+        if gi['displayName'] == golfer['joint_full_name']:
+            golfer['golfer_image_URL'] = gi['headshot']
+            break
+    g = Golfer(first_name=golfer['first_name'], last_name=golfer['last_name'], dg_id=golfer['dg_id'], golfer_image_url = golfer['golfer_image_URL'], owgr = int(golfer['owgr']))
     db.session.add(g)
     db.session.commit()
 

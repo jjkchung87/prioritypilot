@@ -1,7 +1,8 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 from flask_bcrypt import Bcrypt
-from sqlalchemy import ForeignKey, ForeignKeyConstraint
+from sqlalchemy import ForeignKey, ForeignKeyConstraint, event, func
+from sqlalchemy.orm import validates
 import random
 import string
 
@@ -13,6 +14,7 @@ def connect_db(app):
 bcrypt = Bcrypt()
 
 DEFAULT_URL = 'https://hips.hearstapps.com/hmg-prod/images/gettyimages-1226623221.jpg'
+DEFAULT_GOLFER_URL = "https://png.pngtree.com/png-clipart/20210915/ourmid/pngtree-user-avatar-placeholder-black-png-image_3918427.jpg"
 
 
 class User(db.Model):
@@ -49,8 +51,12 @@ class User(db.Model):
     teams = db.relationship('Team', backref="users")
 
     leagues = db.relationship('League', secondary="user_leagues", backref="users")
-    # golfers = db.relationship('Golfer', secondary="user_golfers", backref="users")
     
+    @validates('username')
+    def convert_to_lowercase(self, key, value):
+        """first line of defence to convert usernamename to lowercase"""
+        return value.lower()
+   
     def __repr__(self):
         """better representation of obect"""
         return f"<User #{self.id} {self.username}>"
@@ -64,6 +70,34 @@ class User(db.Model):
             "leagues": [league.serialize() for league in self.leagues],
             "teams": [team.serialize() for team in self.teams]
         }
+    
+    def update_password(self, old_password, new_password):
+        """update to new password"""
+
+        if self.authenticate(self.username, old_password):
+            hashed_new_pw = bcrypt.generate_password_hash(new_password)
+            hashed_new_pw_utf8 = hashed_new_pw.decode("utf8")
+            self.password = hashed_new_pw_utf8
+            db.session.commit()
+        
+        return False
+
+    def get_available_public_leagues(self):
+        """Returns a list of available public leagues for this user"""
+
+        user_league_ids = [league.id for league in self.leagues]
+
+        return (
+            db.session.query(League.id, League.league_name)
+            .join(League.users)  # Join with users to get available leagues
+            .group_by(League.id, League.league_name)
+            .having(func.count(User.id) < League.max_teams)
+            .filter(League.privacy == "public")
+            .filter(League.draft_completed == False)
+            .filter(~League.id.in_(user_league_ids))  # Filter out leagues where user is already a part
+            .all()
+        )
+
     
     @classmethod
     def signup(cls, username, email, first_name, last_name, password, profile_url=DEFAULT_URL):
@@ -87,12 +121,17 @@ class User(db.Model):
     def authenticate(cls, username, password):
         """Authenticate user against hashed password"""
 
+
+        lower_username = username.lower()
         user = User.query.filter_by(username=username).first()
         if user and bcrypt.check_password_hash(user.password, password):
             return user
         else:
             return False
-    
+        
+@event.listens_for(User, 'before_insert')
+def convert_username_to_lowercase(mapper, connection, target):
+    target.username = target.username.lower()    
 
 class League (db.Model):
     """League model"""
@@ -102,7 +141,7 @@ class League (db.Model):
     id = db.Column(db.Integer,
                    primary_key=True)
     
-    league_name = db.Column(db.String(30),
+    league_name = db.Column(db.String,
                             nullable=False,
                             unique=True)
     
@@ -130,18 +169,53 @@ class League (db.Model):
                                 nullable=False,
                                 default=False)
     
+    draft_pick_index = db.Column(db.Integer, default=0)
+
+    draft_pick_count = db.Column(db.Integer, default=0)
+    
     teams = db.relationship("Team", backref="leagues")
 
     golfers = db.relationship("Golfer", secondary="league_golfers", backref="leagues")
     
+    @validates('league_name')
+    def convert_to_lowercase(self, key, value):
+        """first line of defence to convert league name to lowercase"""
+        return value.lower()
+
+
     @property
     def status(self):
         """Property to get status of league"""
         return self.get_status()
+    
+    @property
+    def draft_order(self):
+        """Property to get the draft order of the league"""
+        return self.get_draft_order()
+    
 
     def __repr__(self):
         """Better representation of League model"""
         return f"<League #{self.id} {self.league_name}>"
+    
+    def serialize(self):
+        """Serialize league to Python object"""
+
+        return {
+            "id": self.id,
+            "league_name": self.league_name,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "privacy": self.privacy,
+            "max_teams": self.max_teams,
+            "golfer_count": self.golfer_count,
+            "draft_completed": self.draft_completed,
+            "draft_pick_index": self.draft_pick_index,
+            "draft_pick_count": self.draft_pick_count,
+            "teams": [team.serialize() for team in self.teams],
+            "golfers": [golfer.serialize() for golfer in self.golfers],
+            "draft_order": self.draft_order
+        }
     
     
     def get_status(self):
@@ -168,21 +242,36 @@ class League (db.Model):
         if current_date > self.end_date:
             return "end-play"
 
-    def serialize(self):
-        """Serialize league to Python object"""
-
-        return {
-            "id": self.id,
-            "league_name": self.league_name,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "privacy": self.privacy,
-            "max_teams": self.max_teams,
-            "golfer_count": self.golfer_count,
-            "teams": [team.serialize() for team in self.teams],
-            "golfers": [golfer.serialize() for golfer in self.golfers]
-        }
+    def get_draft_order(self):
+        """Get draft order of league"""
+        return [team.id for team in self.teams]
     
+    def join_validation(self,user):
+        """validation to join league"""
+
+        if self.status in ('in-play', 'end-play', 'in-draft'):
+            success = False
+            msg = 'Too late to join league.'
+            return {'success':success, 'msg':msg}
+
+        if self.max_teams <= len(self.users):
+            success = False
+            msg = 'Maximum capacity reached in this league.'
+            return {'success':success, 'msg':msg}
+
+        if self in user.leagues:
+            success = False
+            msg = 'You are already part of this league!'
+            return {'success':success, 'msg':msg}
+        
+        else:
+            success = True
+            user.leagues.append(self)
+            db.session.commit()
+            msg = f"Welcome to {self.league_name}"
+            return {'success':success, 'msg':msg}
+
+
     @classmethod
     def create_new_league(cls, league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed):
         """create a new league and create """
@@ -220,6 +309,13 @@ class League (db.Model):
         else:
             return False
 
+@event.listens_for(League, 'before_insert')
+def convert_league_name_to_lowercase(mapper, connection, target):
+    """Second line of defence to convert league_name to lowercase"""
+    target.league_name = target.league_name.lower()
+
+
+
 class Team (db.Model):
     """Team model"""
 
@@ -243,6 +339,10 @@ class Team (db.Model):
     
     golfers = db.relationship('Golfer',secondary="team_golfers", backref="teams")
 
+    @validates('team_name')
+    def convert_to_lowercase(self, key, value):
+        """first line of defence to convert team name to lowercase"""
+        return value.lower()
     
     def __repr__(self):
         """Better representation of Team model"""
@@ -260,11 +360,19 @@ class Team (db.Model):
         }
     
     def add_golfer(self, golfer_id):
-        """Add golfer on the team and related league"""
-
+        """Add golfer to the team and related league"""
+  
         golfer = Golfer.query.get(golfer_id)
         league = League.query.get(self.league_id)
+
+        if golfer in self.golfers:
+            # Scenario 1: Golfer is already on the team
+            raise ValueError("Golfer is already on this team")
         
+        if golfer in league.golfers:
+            # Scenario 2: Golfer is already on another team in the same league
+            raise ValueError("Golfer is already on another team in the same league")
+
         self.golfers.append(golfer)
         league.golfers.append(golfer)
         
@@ -280,6 +388,10 @@ class Team (db.Model):
         league.golfers.remove(golfer)
         
         db.session.commit()
+
+@event.listens_for(Team, 'before_insert')
+def convert_team_name_to_lowercase(mapper, connection, target):
+    target.team_name = target.team_name.lower()    
 
 
 class Golfer (db.Model):
@@ -300,6 +412,12 @@ class Golfer (db.Model):
     last_name = db.Column(db.Text,
                            nullable=False)
     
+    owgr = db.Column(db.Integer)
+    
+    golfer_image_url = db.Column(db.Text,
+                                 nullable=False,
+                                 default=DEFAULT_GOLFER_URL)
+    
     __table_args__ = (db.UniqueConstraint("id", "dg_id", name="uq_golfer_id_dg_id"),)
     
     tournaments = db.relationship("Tournament",
@@ -319,7 +437,9 @@ class Golfer (db.Model):
             "id": self.id,
             "dg_id": self.dg_id,
             "first_name": self.first_name,
-            "last_name": self.last_name
+            "last_name": self.last_name,
+            "owgr": self.owgr,
+            "golfer_image_url": self.golfer_image_url
         }
     
 class Tournament (db.Model):
@@ -375,54 +495,11 @@ class UserLeague(db.Model):
                           db.ForeignKey('leagues.id', ondelete='cascade'))
     
     def __repr__(self):
-        """Better representation of UserGolfer"""
+        """Better representation of UserLeague"""
         return f"<UserLeague #{self.id} {self.user_id} {self.league_id}>"
     
 
-class UserGolfer(db.Model):
-    """User and Golfer associationn"""
 
-    __tablename__= "user_golfers"
-
-    id = db.Column(db.Integer,
-                primary_key=True)
-
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('users.id', ondelete='cascade'))
-    
-    golfer_id = db.Column(db.Integer,
-                          db.ForeignKey('golfers.id', ondelete='cascade'))
-    
-    def __repr__(self):
-        """Better representation of UserGolfer"""
-        return f"<UserGolfer #{self.id} {self.user_id} {self.golfer_id}>"
-    
-
-
-# class LeagueTeam(db.Model):
-#     """League and Team association"""
-
-#     __tablename__  = "league_teams"
-
-#     id = db.Column(db.Integer,
-#                 primary_key=True)
-
-#     league_id = db.Column(db.Integer,
-#                         db.ForeignKey('leagues.id', ondelete='cascade'))
-        
-#     team_id = db.Column(db.Integer,
-#                         db.ForeignKey('teams.id', ondelete='cascade'))
-    
-#     team_score = db.Column(db.Integer)
-
-#     user_id = db.Column(db.Integer,
-#                         db.ForeignKey('users.id', ondelete='cascade'))
-
-#     def __repr__(self):
-#         """Better representation of LeagueTeam"""
-#         return f"<LeagueTeam #{self.id} {self.league_id} {self.team_id} {self.team_score}>"
-        
-    
 class TeamGolfer(db.Model):
     """Team and Golfer association"""
 
