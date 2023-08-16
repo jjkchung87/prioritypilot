@@ -172,12 +172,12 @@ class UserModelTestCase(TestCase):
         self.assertEqual(self.in_play_league.status,"in-play")
         self.assertEqual(self.end_play_league.status,"end-play")
 
-def test_get_available_public_leagues(self):
-    """test getting available public leagues"""
+    def test_get_available_public_leagues(self):
+        """test getting available public leagues"""
 
-    leagues = self.test_user_2.get_available_public_leagues()
+        leagues = self.test_user_2.get_available_public_leagues()
 
-    self.assertIn(self.available_pre_draft_public_league.id, [league[0] for league in leagues])
+        self.assertIn(self.available_pre_draft_public_league.id, [league[0] for league in leagues])
 
     def test_valid_join(self):
         """test joining of league"""

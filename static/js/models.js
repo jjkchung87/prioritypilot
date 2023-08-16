@@ -1,3 +1,7 @@
+// FILE PURPOSE ********************************************************************************************************
+//Class models to generate instances of currently logged in user, and their respective team and leagues they are viewing/modifying.
+//Async requests are made to Golfantasy API to retrieve current user, league, and team data
+
 const BASE_URL = "/golfantasy/api"
 
 class User {
@@ -170,10 +174,6 @@ class Team {
 //         return new TeamList(teams);
 //     }
 // }
-
-
-
-
 
 
 
