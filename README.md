@@ -1,7 +1,8 @@
 # Golfantasy #
-LINK TO SITE HERE
-
 _Golf fantasy app where users can create/join leagues, create teams comprised of professional golfers, and compete against other users._
+
+Visit on Render [here](https://golfantasy.onrender.com/golfantasy)
+
 
 ## Features ##
 
@@ -45,5 +46,5 @@ _Python, Flask, Flask-SocketIO, SQLAlchemy, Flask-WTForms_
 
 ## Appendices ##
 
-- [Proposal](https://docs.google.com/document/d/1nWq9YlgI9vl2aBwWGQV3Mdgf-41waVLSlCzAkwAsZnM/edit)
+- [Original Proposal](https://docs.google.com/document/d/1nWq9YlgI9vl2aBwWGQV3Mdgf-41waVLSlCzAkwAsZnM/edit)
 
