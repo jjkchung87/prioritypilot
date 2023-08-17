@@ -9,7 +9,7 @@ click==8.1.6
 dnspython==2.3.0
 email-validator==2.0.0.post2
 eventlet==0.33.3
-Faker==19.2.0
+Faker==18.13.0
 Flask==2.3.2
 Flask-Bcrypt==1.0.1
 Flask-DebugToolbar==0.13.1
