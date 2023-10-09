@@ -1,7 +1,7 @@
-from models import db, Golfer, Tournament, TournamentGolfer, User, League, Team
+from Archives.models import db, Golfer, Tournament, TournamentGolfer, User, League, Team
 from app import app
 import requests
-from golfers_images import golfer_images
+from Archives.golfers_images import golfer_images
 
 
 # db.session.query(Golfer).delete()

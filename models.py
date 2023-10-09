@@ -1,21 +1,26 @@
 from flask_sqlalchemy import SQLAlchemy
+from enum import Enum as EnumBase
+from sqlalchemy import Enum
 from datetime import datetime
-from flask_bcrypt import Bcrypt
 from sqlalchemy import ForeignKey, ForeignKeyConstraint, event, func
 from sqlalchemy.orm import validates
+from flask_bcrypt import Bcrypt
 import random
 import string
+import json
 
 db = SQLAlchemy()
+
 def connect_db(app):
     db.app = app
     db.init_app(app)
 
 bcrypt = Bcrypt()
 
-DEFAULT_URL = 'https://hips.hearstapps.com/hmg-prod/images/gettyimages-1226623221.jpg'
-DEFAULT_GOLFER_URL = "https://png.pngtree.com/png-clipart/20210915/ourmid/pngtree-user-avatar-placeholder-black-png-image_3918427.jpg"
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# USER
 
+DEFAULT_URL = 'https://hips.hearstapps.com/hmg-prod/images/gettyimages-1226623221.jpg'
 
 class User(db.Model):
     """User model"""
@@ -24,10 +29,6 @@ class User(db.Model):
 
     id = db.Column(db.Integer,
                    primary_key=True)
-    
-    username = db.Column(db.String(15),
-                         unique=True,
-                         nullable=False)
     
     email = db.Column(db.Text,
                       unique=True,
@@ -39,36 +40,49 @@ class User(db.Model):
     last_name = db.Column(db.Text,
                            nullable=False)
     
+    team_id = db.Column(db.Integer, 
+                        db.ForeignKey ('teams.id'),
+                        nullable=False)
+    
+    role = db.Column(db.Text,
+                           nullable=False)
+    
     password = db.Column(db.Text,
                          nullable=False)
     
     date_joined = db.Column(db.DateTime,
                             default=datetime.utcnow)
 
-    profile_url = db.Column(db.Text,
+    profile_img = db.Column(db.Text,
                             default=DEFAULT_URL)
     
-    teams = db.relationship('Team', backref="users")
-
-    leagues = db.relationship('League', secondary="user_leagues", backref="users")
+    team = db.relationship('Team', backref="users")
     
-    @validates('username')
-    def convert_to_lowercase(self, key, value):
-        """first line of defence to convert usernamename to lowercase"""
-        return value.lower()
-   
+    projects = db.relationship('Project', secondary="users_projects", backref="users")
+    
+    tasks = db.relationship('Task', secondary="users_tasks", backref="users")
+
+    conversations = db.relationship('Conversation', backref="users")
+
+    meetings = db.relationship("Meeting", secondary="users_meetings", backref="users")
+
+
     def __repr__(self):
         """better representation of obect"""
-        return f"<User #{self.id} {self.username}>"
+        return f"<User #{self.id} {self.first_name} {self.last_name} {self.role} {self.team}>"
     
     def serialize(self):
         """Serialize user to Python object"""
 
         return {
             "id": self.id,
-            "username": self.username,
-            "leagues": [league.serialize() for league in self.leagues],
-            "teams": [team.serialize() for team in self.teams]
+            "email": self.email,
+            "first_name": self.first_name,
+            "last_name": self.last_name,
+            "team_id": self.team_id,
+            "role": self.role,
+            "projects": [project.serialize() for project in self.projects],
+            "tasks": [task.serialize() for task in self.tasks]
         }
     
     def update_password(self, old_password, new_password):
@@ -82,239 +96,40 @@ class User(db.Model):
         
         return False
 
-    def get_available_public_leagues(self):
-        """Returns a list of available public leagues for this user"""
-
-        user_league_ids = [league.id for league in self.leagues]
-
-        return (
-            db.session.query(League.id, League.league_name)
-            .join(League.users)  # Join with users to get available leagues
-            .group_by(League.id, League.league_name)
-            .having(func.count(User.id) < League.max_teams)
-            .filter(League.privacy == "public")
-            .filter(League.draft_completed == False)
-            .filter(~League.id.in_(user_league_ids))  # Filter out leagues where user is already a part
-            .all()
-        )
-
     
     @classmethod
-    def signup(cls, username, email, first_name, last_name, password, profile_url=DEFAULT_URL):
+    def signup(cls, email, first_name, last_name, team_id, role, password, profile_img=DEFAULT_URL):
         """Sign up a new user with password hashing"""
 
         hashed = bcrypt.generate_password_hash(password)
         hashed_utf8 = hashed.decode("utf8")
 
-        user = User(username=username, 
+        user = User( 
             email=email,
             password=hashed_utf8,
             first_name=first_name,
             last_name=last_name,
-            profile_url=profile_url)
+            team_id=team_id,
+            role=role,
+            profile_img=profile_img)
         
         db.session.add(user)
         db.session.commit()
         return user
 
     @classmethod
-    def authenticate(cls, username, password):
+    def authenticate(cls, email, password):
         """Authenticate user against hashed password"""
 
-
-        lower_username = username.lower()
-        user = User.query.filter_by(username=username).first()
+        user = User.query.filter_by(email=email).first()
         if user and bcrypt.check_password_hash(user.password, password):
             return user
         else:
             return False
-        
-@event.listens_for(User, 'before_insert')
-def convert_username_to_lowercase(mapper, connection, target):
-    target.username = target.username.lower()    
+         
 
-class League (db.Model):
-    """League model"""
-
-    __tablename__ = "leagues"
-
-    id = db.Column(db.Integer,
-                   primary_key=True)
-    
-    league_name = db.Column(db.String,
-                            nullable=False,
-                            unique=True)
-    
-    entry_code = db.Column(db.Text,
-                           nullable=False)
-    
-    privacy = db.Column(db.Text,nullable=False)
-
-    max_teams = db.Column(db.Integer)
-
-    golfer_count = db.Column(db.Integer)  
-    
-    created_at = db.Column(db.DateTime,
-                           default=datetime.utcnow)
-    
-    start_date = db.Column(db.DateTime,
-                           nullable=False)
-
-    end_date = db.Column(db.DateTime,
-                           nullable=False)
-    
-    league_manager_id = db.Column(db.Integer, nullable=False)
-    
-    draft_completed = db.Column(db.Boolean,
-                                nullable=False,
-                                default=False)
-    
-    draft_pick_index = db.Column(db.Integer, default=0)
-
-    draft_pick_count = db.Column(db.Integer, default=0)
-    
-    teams = db.relationship("Team", backref="leagues")
-
-    golfers = db.relationship("Golfer", secondary="league_golfers", backref="leagues")
-    
-    @validates('league_name')
-    def convert_to_lowercase(self, key, value):
-        """first line of defence to convert league name to lowercase"""
-        return value.lower()
-
-
-    @property
-    def status(self):
-        """Property to get status of league"""
-        return self.get_status()
-    
-    @property
-    def draft_order(self):
-        """Property to get the draft order of the league"""
-        return self.get_draft_order()
-    
-
-    def __repr__(self):
-        """Better representation of League model"""
-        return f"<League #{self.id} {self.league_name}>"
-    
-    def serialize(self):
-        """Serialize league to Python object"""
-
-        return {
-            "id": self.id,
-            "league_name": self.league_name,
-            "start_date": self.start_date,
-            "end_date": self.end_date,
-            "privacy": self.privacy,
-            "max_teams": self.max_teams,
-            "golfer_count": self.golfer_count,
-            "draft_completed": self.draft_completed,
-            "draft_pick_index": self.draft_pick_index,
-            "draft_pick_count": self.draft_pick_count,
-            "teams": [team.serialize() for team in self.teams],
-            "golfers": [golfer.serialize() for golfer in self.golfers],
-            "draft_order": self.draft_order
-        }
-    
-    
-    def get_status(self):
-        """Get status of league"""
-
-        current_date = datetime.utcnow()
-
-        if self.draft_completed:
-            if current_date <= self.end_date:
-                return "in-play"
-            
-            if current_date > self.end_date:
-                return "end-play"
-
-        if current_date < self.start_date:
-            return "pre-draft"
-    
-        if self.start_date <= current_date <= self.end_date:
-            if self.draft_completed:
-                return "in-play"
-            else:
-                return "in-draft"
-
-        if current_date > self.end_date:
-            return "end-play"
-
-    def get_draft_order(self):
-        """Get draft order of league"""
-        return [team.id for team in self.teams]
-    
-    def join_validation(self,user):
-        """validation to join league"""
-
-        if self.status in ('in-play', 'end-play', 'in-draft'):
-            success = False
-            msg = 'Too late to join league.'
-            return {'success':success, 'msg':msg}
-
-        if self.max_teams <= len(self.users):
-            success = False
-            msg = 'Maximum capacity reached in this league.'
-            return {'success':success, 'msg':msg}
-
-        if self in user.leagues:
-            success = False
-            msg = 'You are already part of this league!'
-            return {'success':success, 'msg':msg}
-        
-        else:
-            success = True
-            user.leagues.append(self)
-            db.session.commit()
-            msg = f"Welcome to {self.league_name}"
-            return {'success':success, 'msg':msg}
-
-
-    @classmethod
-    def create_new_league(cls, league_name, start_date, end_date, privacy, max_teams, golfer_count, league_manager_id, draft_completed):
-        """create a new league and create """
-
-        def generate_entry_code():
-            characters = string.digits + string.ascii_uppercase
-            return ''.join(random.choices(characters, k=6))
-
-        entry_code = generate_entry_code()
-
-        league = League(league_name=league_name, 
-                        entry_code=entry_code, 
-                        privacy=privacy, 
-                        max_teams=max_teams, 
-                        golfer_count=golfer_count,
-                        league_manager_id=league_manager_id,
-                        draft_completed=draft_completed, 
-                        start_date=start_date, 
-                        end_date=end_date)
-        user = User.query.get(league_manager_id)
-        league.users.append(user)
-        db.session.add(league)
-        db.session.commit()
-        return league
-    
-    @classmethod
-    def authenticate(cls, league_name, entry_code):
-        """authentication to see/join a private league"""
-
-        league = League.query.filter(League.league_name == league_name, League.entry_code == entry_code).first()
-
-        if league:
-            return league
-        
-        else:
-            return False
-
-@event.listens_for(League, 'before_insert')
-def convert_league_name_to_lowercase(mapper, connection, target):
-    """Second line of defence to convert league_name to lowercase"""
-    target.league_name = target.league_name.lower()
-
-
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# TEAM
 
 class Team (db.Model):
     """Team model"""
@@ -324,166 +139,477 @@ class Team (db.Model):
     id = db.Column(db.Integer,
                    primary_key=True)
     
-    team_name = db.Column(db.Text,
+    name = db.Column(db.String,
                             nullable=False,
                             unique=True)
     
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('users.id', ondelete="cascade"))
-    
-    league_id = db.Column(db.Integer,
-                          db.ForeignKey('leagues.id', ondelete="cascade"))
-    
     created_at = db.Column(db.DateTime,
                            default=datetime.utcnow)
-    
-    golfers = db.relationship('Golfer',secondary="team_golfers", backref="teams")
+        
 
-    @validates('team_name')
+    @validates('name')
     def convert_to_lowercase(self, key, value):
         """first line of defence to convert team name to lowercase"""
         return value.lower()
     
     def __repr__(self):
-        """Better representation of Team model"""
-        return f"<Team #{self.id} {self.team_name} {self.user_id}>"
+        """Better representation of team model"""
+        return f"<Team #{self.id} {self.name}>"
     
     def serialize(self):
         """Serialize team to Python object"""
 
         return {
             "id": self.id,
-            "team_name": self.team_name,
+            "name": self.name,
+            "users": [user.serialize() for user in self.users]
+        }
+    
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# PROJECT
+
+
+# class Status(EnumBase):
+#     NOT_STARTED = 'Not Started'
+#     IN_PROGRESS = 'In Progress'
+#     COMPLETE = 'Complete'
+#     DELAYED = 'Delayed'
+
+
+class Project (db.Model):
+    """Project model"""
+
+    __tablename__ = "projects"
+
+    id = db.Column(db.Integer,
+                   primary_key=True)
+    
+    project_name = db.Column(db.String,
+                            nullable=False,
+                            unique=True)
+
+    description = db.Column(db.String,
+                            nullable=True,
+                            unique=False)
+    
+    created_at = db.Column(db.DateTime,
+                           nullable=False,
+                           default=datetime.utcnow)
+    
+    modified_at = db.Column(db.DateTime,
+                            nullable=False,
+                            default=datetime.utcnow)
+
+    start_date = db.Column(db.DateTime,
+                           nullable=False)
+
+    end_date = db.Column(db.DateTime,
+                           nullable=False)
+    
+    _valid_statuses = {'Not Started', 'In Progress', 'Complete', 'Delayed'}
+
+    status = db.Column(db.String, nullable=False, default='Not Started')
+
+    user_id = db.Column(db.Integer, 
+                        db.ForeignKey ('users.id'),
+                        nullable=False)
+    
+    tasks = db.relationship("Task", backref="project", cascade="all, delete-orphan")
+
+    # users = db.relationship("Users", secondary="users_projects", backref="projects")
+    
+    @validates('project_name')
+    def convert_to_lowercase(self, key, value):
+        """first line of defence to convert project name to lowercase"""
+        return value.lower()
+
+    @validates('status')
+    def validate_status(self, key, value):
+        if value not in self._valid_statuses:
+            raise ValueError(f"Invalid status: {value}. Valid options are: {', '.join(self._valid_statuses)}")
+        return value
+
+    def __repr__(self):
+        """Better representation of project model"""
+        return f"<Project #{self.id} {self.project_name}>"
+    
+    def serialize(self):
+        """Serialize project to Python object"""
+
+        return {
+            "id": self.id,
+            "project_name": self.project_name,
+            "description": self.description,
+            "created_at": self.created_at,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
             "user_id": self.user_id,
-            "league_id": self.league_id,            
-            "golfers": [golfer.serialize() for golfer in self.golfers]
+            "status": self.status,
+            "tasks": [task.serialize() for task in self.tasks]
         }
     
-    def add_golfer(self, golfer_id):
-        """Add golfer to the team and related league"""
-  
-        golfer = Golfer.query.get(golfer_id)
-        league = League.query.get(self.league_id)
 
-        if golfer in self.golfers:
-            # Scenario 1: Golfer is already on the team
-            raise ValueError("Golfer is already on this team")
-        
-        if golfer in league.golfers:
-            # Scenario 2: Golfer is already on another team in the same league
-            raise ValueError("Golfer is already on another team in the same league")
+    @classmethod
+    def create_new_project(cls, project_name, description, start_date, end_date, user_id):
+        """create a new project and create """
 
-        self.golfers.append(golfer)
-        league.golfers.append(golfer)
-        
+        project = Project(project_name=project_name,
+                          description=description,
+                          start_date=start_date, 
+                          end_date=end_date,
+                          user_id=user_id
+                          )
+        user = User.query.get(user_id)
+        project.users.append(user)
+        db.session.add(project)
         db.session.commit()
+        return project
+    
 
-    def remove_golfer(self, golfer_id):
-        """Remove a golfer on the team and related league"""
+@event.listens_for(Project, 'before_insert')
+def convert_project_name_to_lowercase(mapper, connection, target):
+    """Second line of defence to convert project_name to lowercase"""
+    target.project_name = target.project_name.lower()
 
-        golfer = Golfer.query.get(golfer_id)
-        league = League.query.get(self.league_id)        
-        
-        self.golfers.remove(golfer)
-        league.golfers.remove(golfer)
-        
-        db.session.commit()
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# TASK
 
-@event.listens_for(Team, 'before_insert')
-def convert_team_name_to_lowercase(mapper, connection, target):
-    target.team_name = target.team_name.lower()    
+class Priority(EnumBase):
+    LOW = 'Low'
+    MODERATE = 'Moderate'
+    HIGH = 'High'
 
+class Status(EnumBase):
+    NOT_STARTED = 'Not Started'
+    IN_PROGRESS = 'In Progress'
+    COMPLETE = 'Complete'
+    DELAYED = 'Delayed'
 
-class Golfer (db.Model):
-    """Golfer model"""
+class Type(EnumBase):
+    TASK = 'Task'
+    MEETING = 'Meeting'
 
-    __tablename__ = "golfers"
+class Task (db.Model):
+    """Task model"""
+
+    __tablename__ = "tasks"
 
     id = db.Column(db.Integer,
                    primary_key=True)
     
-    dg_id = db.Column(db.Integer,
-                       unique=True,
-                       nullable=False)
+    task_name = db.Column(db.String,
+                            nullable=False,
+                            unique=False)
+
+    description = db.Column(db.String,
+                            nullable=True,
+                            unique=False)
+
+    notes = db.Column(db.String,
+                            nullable=True,
+                            unique=False)
     
-    first_name = db.Column(db.Text,
+    type = db.Column(Enum(Type), nullable=False)
+    
+    priority = db.Column(Enum(Priority), nullable=False, default=Priority.MODERATE)
+    
+    status = db.Column(Enum(Status), nullable=False, default=Status.NOT_STARTED)
+    
+    created_at = db.Column(db.DateTime,
+                           nullable=False,
+                           default=datetime.utcnow)
+    
+    modified_at = db.Column(db.DateTime,
+                            nullable=False,
+                            default=datetime.utcnow)
+    
+    start_date = db.Column(db.DateTime,
+                           nullable=False)
+
+    end_date = db.Column(db.DateTime,
                            nullable=False)
     
-    last_name = db.Column(db.Text,
-                           nullable=False)
-    
-    owgr = db.Column(db.Integer)
-    
-    golfer_image_url = db.Column(db.Text,
-                                 nullable=False,
-                                 default=DEFAULT_GOLFER_URL)
-    
-    __table_args__ = (db.UniqueConstraint("id", "dg_id", name="uq_golfer_id_dg_id"),)
-    
-    tournaments = db.relationship("Tournament",
-                                  secondary="tournament_golfers",
-                                  backref="golfers",
-                                  primaryjoin="and_(Golfer.id == TournamentGolfer.golfer_id, Golfer.dg_id == TournamentGolfer.golfer_dg_id)",
-                                  secondaryjoin="Tournament.id == TournamentGolfer.tournament_id")
+    user_id = db.Column(db.Integer, 
+                        db.ForeignKey ('users.id'),
+                        nullable=False)
+
+    project_id = db.Column(db.Integer, 
+                        db.ForeignKey ('projects.id'),
+                        nullable=False)    
+
+    # users = db.relationship("Users", secondary="users_tasks", backref="tasks")
+
+
+    @validates('task_name')
+    def convert_to_lowercase(self, key, value):
+        """first line of defence to convert task name to lowercase"""
+        return value.lower()
+
 
     def __repr__(self):
-        """Better representation of golfer"""
-        return f"<Golfer #{self.id} dg_id:{self.dg_id} {self.first_name} {self.last_name}>"
+        """Better representation of task model"""
+        return f"<Task #{self.id} {self.task_name}>"
     
     def serialize(self):
-        """Serialize golfer to Python object"""
+        """Serialize task to Python object"""
 
         return {
             "id": self.id,
-            "dg_id": self.dg_id,
-            "first_name": self.first_name,
-            "last_name": self.last_name,
-            "owgr": self.owgr,
-            "golfer_image_url": self.golfer_image_url
+            "task_name": self.task_name,
+            "description": self.description,
+            "notes": self.notes,
+            "type": self.type,
+            "priority": self.priority,
+            "status": self.status,
+            "created_at": self.created_at,
+            "modified_at": self.modified_at,
+            "start_date": self.start_date,
+            "end_date": self.end_date,
+            "user_id": self.user_id,
+            "project_id": self.project_id,
+            "users": [user.serialize() for user in self.users]
         }
     
-class Tournament (db.Model):
-    """Tournament model"""
 
-    __tablename__ = "tournaments"
+    @classmethod
+    def create_new_task(cls, task_name, description, notes, type, priority, status, start_date, end_date, user_id, project_id):
+        """create a new task and create """
+
+        task = Task(task_name=task_name,
+                          description=description,
+                          notes=notes,
+                          type=type,
+                          priority=priority,
+                          status=status,
+                          start_date=start_date, 
+                          end_date=end_date,
+                          user_id=user_id,
+                          project_id=project_id
+                          )
+        user = User.query.get(user_id)
+        task.users.append(user)
+        db.session.add(task)
+        db.session.commit()
+        return task
+    
+
+@event.listens_for(Task, 'before_insert')
+def convert_task_name_to_lowercase(mapper, connection, target):
+    """Second line of defence to convert task_name to lowercase"""
+    target.task_name = target.task_name.lower()
+
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# MEETING
+
+
+class Meeting (db.Model):
+    """Meeting model"""
+
+    __tablename__ = "meetings"
+
+    id = db.Column(db.Integer,
+                   primary_key=True,
+                   unique=True)
+    
+    task_id = db.Column(db.Integer, 
+                        db.ForeignKey ('tasks.id'),
+                        nullable=False)    
+    
+    project_id = db.Column(db.Integer, 
+                        db.ForeignKey ('projects.id'),
+                        nullable=False)    
+
+    subject = db.Column(db.String,
+                            nullable=True,
+                            unique=False)
+
+    notes = db.Column(db.String,
+                            nullable=True,
+                            unique=False)
+        
+    created_at = db.Column(db.DateTime,
+                           default=datetime.utcnow)
+    
+    modified_at = db.Column(db.DateTime,
+                            default=datetime.utcnow)
+    
+    start_date_time = db.Column(db.DateTime,
+                           nullable=False)
+
+    end_date_time = db.Column(db.DateTime,
+                           nullable=False)
+    
+    user_id = db.Column(db.Integer, nullable=False)
+
+
+ 
+
+    def __repr__(self):
+        """Better representation of meeting model"""
+        return f"<Meeting #{self.id} {self.subject}>"
+    
+    def serialize(self):
+        """Serialize meeting to Python object"""
+
+        return {
+            "id": self.id,
+            "task_id": self.task_id,
+            "project_id": self.project_id,
+            "subject": self.subject,
+            "notes": self.notes,
+            "created_at": self.created_at,
+            "modified_at": self.modified_at,
+            "start_date_time": self.start_date_time,
+            "end_date_time": self.end_date_time,
+            "user_id": self.user_id,
+            "users": [user.serialize() for user in self.users]
+        }
+    
+
+    @classmethod
+    def create_new_meeting(cls, 
+                           task_id, 
+                           project_id, 
+                           subject, 
+                           notes, 
+                           created_at, 
+                           modified_at, 
+                           start_date_time, 
+                           end_date_time, 
+                           user_id, 
+                           invited_user_ids):
+        """create a new meeting """
+
+        meeting = Meeting(task_id=task_id,
+                          project_id=project_id,
+                          subject=subject,
+                          notes=notes,
+                          created_at=created_at,
+                          modified_at=modified_at,
+                          start_date_time=start_date_time, 
+                          end_date_time=end_date_time,
+                          user_id=user_id
+                          )
+        
+        user = User.query.get(user_id)
+        meeting.users.append(user)
+        
+        for invited_user_id in invited_user_ids:
+            u = User.query.get(invited_user_id)
+            meeting.users.append(u)
+
+        db.session.add(meeting)
+        db.session.commit()
+        return meeting
+    
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# CONVERSATION
+
+
+class ConversationType(EnumBase):
+    NEW_PROJECT = 'New Project'
+    ASSISTANCE = 'Assistance'
+
+class Conversation(db.Model):
+    """Conversation model"""
+
+    __tablename__ = "conversations"
 
     id = db.Column(db.Integer,
                    primary_key=True)
     
-    dg_id = db.Column(db.Integer, nullable=False)
-    
-    tournament_name = db.Column(db.Text,
-                           nullable=False)
-    
-    calendar_year = db.Column(db.Integer)
-    
-    date = db.Column(db.DateTime,
-                           nullable=False)
-    tour = db.Column(db.Text)
+    user_id = db.Column(db.Integer, 
+                        db.ForeignKey ('users.id'),
+                        nullable=False)
 
-    __table_args__ = (
-        db.UniqueConstraint("tournament_name","calendar_year","dg_id", name="uq_tournament_name_calendar_year_dg_id"),
-    )
+    conversation_type = db.Column(Enum(ConversationType), 
+                                  nullable=False, 
+                                  default=ConversationType.NEW_PROJECT)
+    
+    task_id = db.Column(db.Integer, 
+                        db.ForeignKey ('tasks.id'),
+                        nullable=True)
 
+    project_id = db.Column(db.Integer, 
+                        db.ForeignKey ('projects.id'),
+                        nullable=False)
+
+    messages = db.Column(db.JSON, nullable=True)
+
+    created_at = db.Column(db.DateTime,
+                           default=datetime.utcnow)
+    
+    modified_at = db.Column(db.DateTime,
+                            default=datetime.utcnow)
+    
     def __repr__(self):
-        """Better representation of tournaments"""
-        return f"<Tournament #{self.id} dg_id:{self.dg_id} {self.tournament_name} {self.calendar_year} {self.date} {self.tour}>"
+        """Better representation of Conversation model"""
+        return f"<Conversation #{self.id} {self.messages}>"
     
-    def serialize(self):
-        """Serialize tournament to Python object"""
-        return {
-            "id": self.id,
-            "tournament_name": self.tournament_name,
-            "calendar_year": self.calendar_year,
-            "date": self.date,
-            "tour": self.tour
-        }    
+    def set_messages(self, messages):
+        """Serialize and store messages"""
+        
+        if self.messages:
+            current_messages = json.loads(self.messages)
+            current_messages.append(messages)
+            self.messages = json.dumps(current_messages)
+
+        else:
+            self.messages = json.dumps(messages)
+
+        db.session.commit()
+
+    def get_messages(self):
+        """Retrieve messages and turn into Python list of objects"""
+
+        if self.messages:
+            return json.loads(self.messages)
+        return []
+
+
+
+    # def serialize(self):
+    #     """Serialize conversation to Python object"""
+
+    #     return {
+    #         "id": self.id,
+    #         "user_id": self.user_id,
+    #         "type": self.type,
+    #         "task_id": self.task_id,
+    #         "project_id": self.project_id,
+    #         "messsages": self.messages,
+    #         "created_at": self.created_at,
+    #         "modified_at": self.modified_at
+    #     }
     
 
-class UserLeague(db.Model):
-    """User and League Association"""
+    @classmethod
+    def create_new_conversation(cls, 
+                                user_id,
+                                conversation_type,
+                                task_id,
+                                project_id
+                                ):
+        """create a new conversation """
 
-    __tablename__= "user_leagues"
+        conversation = Conversation(user_id=user_id,
+                                    conversation_type=conversation_type,
+                                    task_id=task_id,
+                                    project_id=project_id,
+                                    )
+        user = User.query.get(user_id)
+        conversation.users.append(user)
+        db.session.add(conversation)
+        db.session.commit()
+        return conversation
+    
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# USERPROJECT
+
+class UserProject(db.Model):
+    """User and Project Association"""
+
+    __tablename__= "users_projects"
 
     id = db.Column(db.Integer,
                 primary_key=True)
@@ -491,88 +617,52 @@ class UserLeague(db.Model):
     user_id = db.Column(db.Integer,
                         db.ForeignKey('users.id', ondelete='cascade'))
     
-    league_id = db.Column(db.Integer,
-                          db.ForeignKey('leagues.id', ondelete='cascade'))
+    project_id = db.Column(db.Integer,
+                          db.ForeignKey('projects.id', ondelete='cascade'))
     
     def __repr__(self):
-        """Better representation of UserLeague"""
-        return f"<UserLeague #{self.id} {self.user_id} {self.league_id}>"
-    
+        """Better representation of UserProject"""
+        return f"<UserProject #{self.id} {self.user_id} {self.project_id}>"
 
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# USERTASK
 
-class TeamGolfer(db.Model):
-    """Team and Golfer association"""
+class UserTask(db.Model):
+    """User and Task Association"""
 
-    __tablename__  = "team_golfers"
+    __tablename__= "users_tasks"
 
     id = db.Column(db.Integer,
                 primary_key=True)
 
-    team_id = db.Column(db.Integer,
-                        db.ForeignKey('teams.id', ondelete='cascade'))
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('users.id', ondelete='cascade'))
     
-    golfer_id = db.Column(db.Integer,
-                        db.ForeignKey('golfers.id', ondelete='cascade'))
+    task_id = db.Column(db.Integer,
+                          db.ForeignKey('tasks.id', ondelete='cascade'))
     
-    golfer_score = db.Column(db.Integer)
-
     def __repr__(self):
-        """Better representation of TeamGolfer"""
-        return f"<TeamGolfer #{self.id} {self.team_id} {self.golfer_id} {self.golfer_score}>"
+        """Better representation of UserTask"""
+        return f"<UserTask #{self.id} {self.user_id} {self.task_id}>"
 
-class LeagueGolfer(db.Model):
-    """League and Golfer association"""
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# USERMEETING
 
-    __tablename__  = "league_golfers"
+class UserMeeting(db.Model):
+    """User and Meeting Association"""
+
+    __tablename__= "users_meetings"
 
     id = db.Column(db.Integer,
                 primary_key=True)
 
-    league_id = db.Column(db.Integer,
-                        db.ForeignKey('leagues.id', ondelete='cascade'))
+    user_id = db.Column(db.Integer,
+                        db.ForeignKey('users.id', ondelete='cascade'))
     
-    golfer_id = db.Column(db.Integer,
-                        db.ForeignKey('golfers.id', ondelete='cascade'))
+    meeting_id = db.Column(db.Integer,
+                          db.ForeignKey('meetings.id', ondelete='cascade'))
     
-    golfer_score = db.Column(db.Integer)
-
     def __repr__(self):
-        """Better representation of LeagueGolfer"""
-        return f"<LeagueGolfer #{self.id} {self.league_id} {self.golfer_id} {self.golfer_score}>"
+        """Better representation of UserMeeting"""
+        return f"<UserMeeting #{self.id} {self.user_id} {self.meeting_id}>"
     
-
-class TournamentGolfer(db.Model):
-    """Tournament and Golfer association model"""
-
-    __tablename__ = "tournament_golfers"
-
-    id = db.Column(db.Integer, primary_key=True)
-
-    # Define the local IDs as foreign keys with ondelete='CASCADE'
-    tournament_id = db.Column(db.Integer, ForeignKey('tournaments.id', ondelete='CASCADE'))
-    golfer_id = db.Column(db.Integer, ForeignKey('golfers.id', ondelete='CASCADE'))
-
-    # Define the external IDs as foreign keys with ondelete='CASCADE'
-    tournament_name = db.Column(db.Text)
-    calendar_year = db.Column(db.Integer)
-    tournament_dg_id = db.Column(db.Integer)
-
-
-    # Add other fields for the association as needed
-    round = db.Column(db.Integer)
-    course_par = db.Column(db.Integer)
-    score_vs_par = db.Column(db.Integer)
-    golfer_score = db.Column(db.Integer)
-
-    # Add the golfer_dg_id as well
-    golfer_dg_id = db.Column(db.Integer, ForeignKey('golfers.dg_id', ondelete='CASCADE'))
-
-    # Define a unique constraint to ensure golfer_id and golfer_dg_id always match
-    __table_args__ = (
-        # db.UniqueConstraint("golfer_id", "golfer_dg_id", name="uq_tournament_golfer_golfer_id_dg_id"),
-        db.ForeignKeyConstraint(["tournament_name","calendar_year","tournament_dg_id"], ["tournaments.tournament_name","tournaments.calendar_year","tournaments.dg_id"], ondelete="CASCADE"),
-    )
-
-    def __repr__(self):
-        """Better representation of TournamentGolfer"""
-        return f"<TournamentGolfer #{self.id} {self.tournament_id} {self.tournament_name} {self.calendar_year} {self.tournament_dg_id} {self.golfer_id} {self.golfer_dg_id} {self.golfer_score}>"

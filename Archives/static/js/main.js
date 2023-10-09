@@ -5,9 +5,6 @@ let leagueTeams = ""
 let currentTeam = ""
 let currentLeague = ""
 
-const socket = io('http://127.0.0.1:5000');
-
-
 const $signupForm = $('#signup_form')
 const $loginForm = $('#login_form')
 const $logoutForm = $('#logout_form')
@@ -103,16 +100,17 @@ async function instantiateCurrentTeam() {
 async function initializePage() {
     await instantiateCurrentUser();
     await instantiateCurrentLeague();
-    await instantiateCurrentTeam();
+    console.log(currentUser, currentLeague)
     // picksPerTeam = currentLeague.golfer_count
     // draftPickIndex = currentLeague.draft_pick_index
     // Now you can continue with the rest of your logic that depends on these values
 }
 
-instantiateCurrentUser()
-instantiateCurrentLeague()
+initializePage()
 
-// DRAFT PAGE LOGIC **************************************************************************************************************
+
+
+// START OF DRAFT PAGE LOGIC **************************************************************************************************************
 
 $(document).ready(async function() {
 await initializePage()

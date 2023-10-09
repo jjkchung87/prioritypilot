@@ -1,7 +1,7 @@
 import os
 from unittest import TestCase
 from sqlalchemy import exc
-from models import db, User, League  # Import your models
+from Archives.models import db, User, League  # Import your models
 from datetime import datetime
 
 

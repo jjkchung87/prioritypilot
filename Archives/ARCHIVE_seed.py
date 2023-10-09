@@ -1,4 +1,4 @@
-from models import db, Golfer, Tournament, TournamentGolfer, User, League, Team
+from Archives.models import db, Golfer, Tournament, TournamentGolfer, User, League, Team
 from app import app
 import requests
 
