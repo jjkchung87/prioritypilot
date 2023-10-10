@@ -332,6 +332,10 @@ class Task (db.Model):
     user_id = db.Column(db.Integer, 
                         db.ForeignKey ('users.id'),
                         nullable=False)
+    
+    meeting_user_id = db.Column(db.Integer, 
+                        db.ForeignKey ('users.id'),
+                        nullable=True)
 
     project_id = db.Column(db.Integer, 
                         db.ForeignKey ('projects.id'),
@@ -366,13 +370,13 @@ class Task (db.Model):
             "start_date": self.start_date,
             "end_date": self.end_date,
             "user_id": self.user_id,
+            "meeting_user_id": self.meeting_user_id,
             "project_id": self.project_id,
-            "users": [user.serialize() for user in self.users]
         }
     
 
     @classmethod
-    def create_new_task(cls, task_name, description, notes, type, priority, status, start_date, end_date, user_id, project_id):
+    def create_new_task(cls, task_name, description, notes, type, priority, status, start_date, end_date, user_id, meeting_user_id, project_id):
         """create a new task and create """
 
         task = Task(task_name=task_name,
@@ -384,6 +388,7 @@ class Task (db.Model):
                           start_date=start_date, 
                           end_date=end_date,
                           user_id=user_id,
+                          meeting_user_id=meeting_user_id,
                           project_id=project_id
                           )
         user = User.query.get(user_id)
@@ -462,7 +467,6 @@ class Meeting (db.Model):
             "start_date_time": self.start_date_time,
             "end_date_time": self.end_date_time,
             "user_id": self.user_id,
-            "users": [user.serialize() for user in self.users]
         }
     
 
