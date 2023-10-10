@@ -64,7 +64,7 @@ class User(db.Model):
 
     conversations = db.relationship('Conversation', backref="users")
 
-    meetings = db.relationship("Meeting", secondary="users_meetings", backref="users")
+    # meetings = db.relationship("Meeting", secondary="users_meetings", backref="users")
 
 
     def __repr__(self):
@@ -274,21 +274,6 @@ def convert_project_name_to_lowercase(mapper, connection, target):
 #*****************************************************************************************************************************************************************************************************************************************************************************
 # TASK
 
-class Priority(EnumBase):
-    LOW = 'Low'
-    MODERATE = 'Moderate'
-    HIGH = 'High'
-
-class Status(EnumBase):
-    NOT_STARTED = 'Not Started'
-    IN_PROGRESS = 'In Progress'
-    COMPLETE = 'Complete'
-    DELAYED = 'Delayed'
-
-class Type(EnumBase):
-    TASK = 'Task'
-    MEETING = 'Meeting'
-
 class Task (db.Model):
     """Task model"""
 
@@ -309,11 +294,17 @@ class Task (db.Model):
                             nullable=True,
                             unique=False)
     
-    type = db.Column(Enum(Type), nullable=False)
+    _valid_types = {'Task','Meeting'}
+
+    type = db.Column(db.String, nullable=False, default='Task')
     
-    priority = db.Column(Enum(Priority), nullable=False, default=Priority.MODERATE)
-    
-    status = db.Column(Enum(Status), nullable=False, default=Status.NOT_STARTED)
+    _valid_statuses = {'Not Started', 'In Progress', 'Complete', 'Delayed'}
+
+    status = db.Column(db.String, nullable=False, default='Not Started')
+
+    _valid_priorities = {'Low','Moderate','High'}
+
+    priority = db.Column(db.String, nullable=False, default='Moderate')
     
     created_at = db.Column(db.DateTime,
                            nullable=False,
@@ -333,7 +324,7 @@ class Task (db.Model):
                         db.ForeignKey ('users.id'),
                         nullable=False)
     
-    meeting_user_id = db.Column(db.Integer, 
+    meeting_user_id = db.Column(db.Integer, #if type is "Meeting", this indicates who the meeting is with.
                         db.ForeignKey ('users.id'),
                         nullable=True)
 
@@ -349,6 +340,23 @@ class Task (db.Model):
         """first line of defence to convert task name to lowercase"""
         return value.lower()
 
+    @validates('type')
+    def validate_type(self, key, value):
+        if value not in self._valid_types:
+            raise ValueError(f"Invalid type: {value}. Valid options are: {', '.join(self._valid_types)}")
+        return value
+    
+    @validates('status')
+    def validate_status(self, key, value):
+        if value not in self._valid_statuses:
+            raise ValueError(f"Invalid status: {value}. Valid options are: {', '.join(self._valid_statuses)}")
+        return value
+
+    @validates('priority')
+    def validate_priority(self, key, value):
+        if value not in self._valid_priorities:
+            raise ValueError(f"Invalid priority: {value}. Valid options are: {', '.join(self._valid_priorities)}")
+        return value
 
     def __repr__(self):
         """Better representation of task model"""
@@ -403,116 +411,11 @@ def convert_task_name_to_lowercase(mapper, connection, target):
     """Second line of defence to convert task_name to lowercase"""
     target.task_name = target.task_name.lower()
 
-#*****************************************************************************************************************************************************************************************************************************************************************************
-# MEETING
 
-
-class Meeting (db.Model):
-    """Meeting model"""
-
-    __tablename__ = "meetings"
-
-    id = db.Column(db.Integer,
-                   primary_key=True,
-                   unique=True)
-    
-    task_id = db.Column(db.Integer, 
-                        db.ForeignKey ('tasks.id'),
-                        nullable=False)    
-    
-    project_id = db.Column(db.Integer, 
-                        db.ForeignKey ('projects.id'),
-                        nullable=False)    
-
-    subject = db.Column(db.String,
-                            nullable=True,
-                            unique=False)
-
-    notes = db.Column(db.String,
-                            nullable=True,
-                            unique=False)
-        
-    created_at = db.Column(db.DateTime,
-                           default=datetime.utcnow)
-    
-    modified_at = db.Column(db.DateTime,
-                            default=datetime.utcnow)
-    
-    start_date_time = db.Column(db.DateTime,
-                           nullable=False)
-
-    end_date_time = db.Column(db.DateTime,
-                           nullable=False)
-    
-    user_id = db.Column(db.Integer, nullable=False)
-
-
- 
-
-    def __repr__(self):
-        """Better representation of meeting model"""
-        return f"<Meeting #{self.id} {self.subject}>"
-    
-    def serialize(self):
-        """Serialize meeting to Python object"""
-
-        return {
-            "id": self.id,
-            "task_id": self.task_id,
-            "project_id": self.project_id,
-            "subject": self.subject,
-            "notes": self.notes,
-            "created_at": self.created_at,
-            "modified_at": self.modified_at,
-            "start_date_time": self.start_date_time,
-            "end_date_time": self.end_date_time,
-            "user_id": self.user_id,
-        }
-    
-
-    @classmethod
-    def create_new_meeting(cls, 
-                           task_id, 
-                           project_id, 
-                           subject, 
-                           notes, 
-                           created_at, 
-                           modified_at, 
-                           start_date_time, 
-                           end_date_time, 
-                           user_id, 
-                           invited_user_ids):
-        """create a new meeting """
-
-        meeting = Meeting(task_id=task_id,
-                          project_id=project_id,
-                          subject=subject,
-                          notes=notes,
-                          created_at=created_at,
-                          modified_at=modified_at,
-                          start_date_time=start_date_time, 
-                          end_date_time=end_date_time,
-                          user_id=user_id
-                          )
-        
-        user = User.query.get(user_id)
-        meeting.users.append(user)
-        
-        for invited_user_id in invited_user_ids:
-            u = User.query.get(invited_user_id)
-            meeting.users.append(u)
-
-        db.session.add(meeting)
-        db.session.commit()
-        return meeting
     
 #*****************************************************************************************************************************************************************************************************************************************************************************
 # CONVERSATION
 
-
-class ConversationType(EnumBase):
-    NEW_PROJECT = 'New Project'
-    ASSISTANCE = 'Assistance'
 
 class Conversation(db.Model):
     """Conversation model"""
@@ -526,9 +429,9 @@ class Conversation(db.Model):
                         db.ForeignKey ('users.id'),
                         nullable=False)
 
-    conversation_type = db.Column(Enum(ConversationType), 
-                                  nullable=False, 
-                                  default=ConversationType.NEW_PROJECT)
+    _valid_conversation_types = {'New Project','Assistance'}
+
+    conversation_type = db.Column(db.String, nullable=False, default='New Project')
     
     task_id = db.Column(db.Integer, 
                         db.ForeignKey ('tasks.id'),
@@ -586,6 +489,12 @@ class Conversation(db.Model):
     #         "modified_at": self.modified_at
     #     }
     
+    @validates('conversation_type')
+    def validate_conversation_type(self, key, value):
+        if value not in self._valid_conversation_types:
+            raise ValueError(f"Invalid conversation_type: {value}. Valid options are: {', '.join(self._valid_conversation_types)}")
+        return value
+
 
     @classmethod
     def create_new_conversation(cls, 
@@ -650,23 +559,128 @@ class UserTask(db.Model):
         return f"<UserTask #{self.id} {self.user_id} {self.task_id}>"
 
 #*****************************************************************************************************************************************************************************************************************************************************************************
-# USERMEETING
+# MEETING
 
-class UserMeeting(db.Model):
-    """User and Meeting Association"""
 
-    __tablename__= "users_meetings"
+# class Meeting (db.Model):
+#     """Meeting model"""
 
-    id = db.Column(db.Integer,
-                primary_key=True)
+#     __tablename__ = "meetings"
 
-    user_id = db.Column(db.Integer,
-                        db.ForeignKey('users.id', ondelete='cascade'))
+#     id = db.Column(db.Integer,
+#                    primary_key=True,
+#                    unique=True)
     
-    meeting_id = db.Column(db.Integer,
-                          db.ForeignKey('meetings.id', ondelete='cascade'))
+#     task_id = db.Column(db.Integer, 
+#                         db.ForeignKey ('tasks.id'),
+#                         nullable=False)    
     
-    def __repr__(self):
-        """Better representation of UserMeeting"""
-        return f"<UserMeeting #{self.id} {self.user_id} {self.meeting_id}>"
+#     project_id = db.Column(db.Integer, 
+#                         db.ForeignKey ('projects.id'),
+#                         nullable=False)    
+
+#     subject = db.Column(db.String,
+#                             nullable=True,
+#                             unique=False)
+
+#     notes = db.Column(db.String,
+#                             nullable=True,
+#                             unique=False)
+        
+#     created_at = db.Column(db.DateTime,
+#                            default=datetime.utcnow)
+    
+#     modified_at = db.Column(db.DateTime,
+#                             default=datetime.utcnow)
+    
+#     start_date_time = db.Column(db.DateTime,
+#                            nullable=False)
+
+#     end_date_time = db.Column(db.DateTime,
+#                            nullable=False)
+    
+#     user_id = db.Column(db.Integer, nullable=False)
+
+
+ 
+
+#     def __repr__(self):
+#         """Better representation of meeting model"""
+#         return f"<Meeting #{self.id} {self.subject}>"
+    
+#     def serialize(self):
+#         """Serialize meeting to Python object"""
+
+#         return {
+#             "id": self.id,
+#             "task_id": self.task_id,
+#             "project_id": self.project_id,
+#             "subject": self.subject,
+#             "notes": self.notes,
+#             "created_at": self.created_at,
+#             "modified_at": self.modified_at,
+#             "start_date_time": self.start_date_time,
+#             "end_date_time": self.end_date_time,
+#             "user_id": self.user_id,
+#         }
+    
+
+#     @classmethod
+#     def create_new_meeting(cls, 
+#                            task_id, 
+#                            project_id, 
+#                            subject, 
+#                            notes, 
+#                            created_at, 
+#                            modified_at, 
+#                            start_date_time, 
+#                            end_date_time, 
+#                            user_id, 
+#                            invited_user_ids):
+#         """create a new meeting """
+
+#         meeting = Meeting(task_id=task_id,
+#                           project_id=project_id,
+#                           subject=subject,
+#                           notes=notes,
+#                           created_at=created_at,
+#                           modified_at=modified_at,
+#                           start_date_time=start_date_time, 
+#                           end_date_time=end_date_time,
+#                           user_id=user_id
+#                           )
+        
+#         user = User.query.get(user_id)
+#         meeting.users.append(user)
+        
+#         for invited_user_id in invited_user_ids:
+#             u = User.query.get(invited_user_id)
+#             meeting.users.append(u)
+
+#         db.session.add(meeting)
+#         db.session.commit()
+#         return meeting
+
+
+
+#*****************************************************************************************************************************************************************************************************************************************************************************
+# # USERMEETING
+
+# class UserMeeting(db.Model):
+#     """User and Meeting Association"""
+
+#     __tablename__= "users_meetings"
+
+#     id = db.Column(db.Integer,
+#                 primary_key=True)
+
+#     user_id = db.Column(db.Integer,
+#                         db.ForeignKey('users.id', ondelete='cascade'))
+    
+#     meeting_id = db.Column(db.Integer,
+#                           db.ForeignKey('meetings.id', ondelete='cascade'))
+    
+#     def __repr__(self):
+#         """Better representation of UserMeeting"""
+#         return f"<UserMeeting #{self.id} {self.user_id} {self.meeting_id}>"
     

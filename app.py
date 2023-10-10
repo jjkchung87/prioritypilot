@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError, PendingRollbackError
 from sqlalchemy import func, and_, case
 import requests
-from models import db, connect_db, User, Team, Project, Task, Meeting, Conversation, ConversationType
+from models import db, connect_db, User, Team, Project, Task, Conversation, UserProject
 from Archives.forms import CreateProjectForm
 from datetime import datetime, timedelta
 from controller import create_new_project_conversation

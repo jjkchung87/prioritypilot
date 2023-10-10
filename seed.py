@@ -3,7 +3,7 @@ import string
 from faker import Faker
 from datetime import datetime, timedelta
 from app import app
-from models import db, User, Team, Project, Task, Meeting, Conversation
+from models import db, User, Team, Project, Task, Conversation
 
 
 db.session.rollback()
