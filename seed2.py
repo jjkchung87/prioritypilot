@@ -62,7 +62,7 @@ for i in range(2):
     project = Project(
         project_name=fake.company(),
         description=fake.text(),
-        start_date=fake.date_time_this_decade(),
+        # start_date=fake.date_time_this_decade(),
         end_date=fake.date_time_this_decade(),
         user_id=users[0].id,
     )
@@ -74,14 +74,14 @@ db.session.commit()
 # Create 5 tasks for each project, 2 of which are meetings
 for project in projects:
     for i in range(5):
-        task_type = "Meeting" if i < 2 else "Task"
+        task_type = "meeting" if i < 2 else "task"
         task = Task(
             task_name=fake.catch_phrase(),
             description=fake.text(),
             type=task_type,
             status=random.choice(["Not Started", "In Progress", "Complete", "Delayed"]),
             priority=random.choice(["Low", "Moderate", "High"]),
-            start_date=fake.date_time_this_decade(),
+            # start_date=fake.date_time_this_decade(),
             end_date=fake.date_time_this_decade(),
             user_id=test_user.id,
             project_id=project.id,

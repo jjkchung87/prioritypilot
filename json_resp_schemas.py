@@ -24,20 +24,19 @@ base_url= 'prioritypilot/api'
                 "description": "Limited time only launch of new burger",
                 "created_at": "10-09-2023 20:24:56 GMT",
                 "modified_at": "10-09-2023 20:24:56 GMT",
-                "start_date": "10-09-2023 20:24:56 GMT",
                 "end_date": "10-09-2023 20:24:56 GMT",
                 "user_id": 1,
-                "status": "In progress",
+                "status": "In Progress",
                 "tasks":[
                     {
                         "id": 1,
                         "description": "Develop drink concept",
                         "notes": "",
-                        "type": "task",
-                        "priority": "moderate",
+                        "type": "Task",
+                        "priority": "Moderate",
+                        "status": "Not Started",
                         "created_at": "10-09-2023 20:24:56 GMT",
                         "modified_at": "10-09-2023 20:24:56 GMT",
-                        "start_date": "10-09-2023 20:24:56 GMT",
                         "end_date": "10-09-2023 20:24:56 GMT",
                         "user_id": 1,
                         "meeting_user_id": None,
@@ -49,9 +48,9 @@ base_url= 'prioritypilot/api'
                         "notes": "",
                         "type": "meeting",
                         "priority": "moderate",
+                        "status": "Not Started",
                         "created_at": "10-09-2023 20:24:56 GMT",
                         "modified_at": "10-09-2023 20:24:56 GMT",
-                        "start_date": "10-09-2023 20:24:56 GMT",
                         "end_date": "10-09-2023 20:24:56 GMT",
                         "user_id": 1,
                         "meeting_user_id": 2,
@@ -72,34 +71,47 @@ base_url= 'prioritypilot/api'
 # /projects/<id>
 # /projects would be a list of project objects
 
-{"project":
-    {
-        "id": 1,
-        "project_name": "Q1 2024 New Burger Launch",
-        "description": "Limited time only launch of new burger",
-        "created_at": "10-09-2023 20:24:56 GMT",
-        "modified_at": "10-09-2023 20:24:56 GMT",
-        "start_date": "10-09-2023 20:24:56 GMT",
-        "end_date": "10-09-2023 20:24:56 GMT",
-        "user_id": 1,
-        "status": "In progress",
-        "tasks":[
-            {
+{
+    "project": {
                 "id": 1,
-                "description": "Develop drink concept",
-                "notes": "",
-                "type": "task",
-                "priority": "moderate",
+                "project_name": "Q1 2024 New Burger Launch",
+                "description": "Limited time only launch of new burger",
                 "created_at": "10-09-2023 20:24:56 GMT",
                 "modified_at": "10-09-2023 20:24:56 GMT",
-                "start_date": "10-09-2023 20:24:56 GMT",
                 "end_date": "10-09-2023 20:24:56 GMT",
                 "user_id": 1,
-                "meeting_user_id": None,
-                "project_id": 1
+                "status": "In Progress",
+                "tasks":[
+                    {
+                        "id": 1,
+                        "description": "Develop drink concept",
+                        "notes": "",
+                        "type": "Task",
+                        "priority": "Moderate",
+                        "status": "Not Started",
+                        "created_at": "10-09-2023 20:24:56 GMT",
+                        "modified_at": "10-09-2023 20:24:56 GMT",
+                        "end_date": "10-09-2023 20:24:56 GMT",
+                        "user_id": 1,
+                        "meeting_user_id": None,
+                        "project_id": 1
+                    },
+                    {
+                        "id": 2,
+                        "description": "Meet with Supply Chain to determine ingredient timelines",
+                        "notes": "",
+                        "type": "meeting",
+                        "priority": "moderate",
+                        "status": "Not Started",
+                        "created_at": "10-09-2023 20:24:56 GMT",
+                        "modified_at": "10-09-2023 20:24:56 GMT",
+                        "end_date": "10-09-2023 20:24:56 GMT",
+                        "user_id": 1,
+                        "meeting_user_id": 2,
+                        "project_id": 1
+                    }
+                ]
             }
-        ]
-    }
 }
 
 
@@ -110,14 +122,14 @@ base_url= 'prioritypilot/api'
 
 {"task":
     {
-        "id": 1,
+       "id": 1,
         "description": "Develop drink concept",
         "notes": "",
-        "type": "task",
-        "priority": "moderate",
+        "type": "Task",
+        "priority": "Moderate",
+        "status": "Not Started",
         "created_at": "10-09-2023 20:24:56 GMT",
         "modified_at": "10-09-2023 20:24:56 GMT",
-        "start_date": "10-09-2023 20:24:56 GMT",
         "end_date": "10-09-2023 20:24:56 GMT",
         "user_id": 1,
         "meeting_user_id": None,

@@ -81,8 +81,7 @@ class User(db.Model):
             "last_name": self.last_name,
             "team_id": self.team_id,
             "role": self.role,
-            "projects": [project.serialize() for project in self.projects],
-            "tasks": [task.serialize() for task in self.tasks]
+            "projects": [project.serialize() for project in self.projects]
         }
     
     def update_password(self, old_password, new_password):
@@ -200,8 +199,8 @@ class Project (db.Model):
                             nullable=False,
                             default=datetime.utcnow)
 
-    start_date = db.Column(db.DateTime,
-                           nullable=False)
+    # start_date = db.Column(db.DateTime,
+    #                        nullable=False)
 
     end_date = db.Column(db.DateTime,
                            nullable=False)
@@ -241,7 +240,7 @@ class Project (db.Model):
             "project_name": self.project_name,
             "description": self.description,
             "created_at": self.created_at,
-            "start_date": self.start_date,
+            # "start_date": self.start_date,
             "end_date": self.end_date,
             "user_id": self.user_id,
             "status": self.status,
@@ -250,12 +249,12 @@ class Project (db.Model):
     
 
     @classmethod
-    def create_new_project(cls, project_name, description, start_date, end_date, user_id):
+    def create_new_project(cls, project_name, description, end_date, user_id):
         """create a new project and create """
 
         project = Project(project_name=project_name,
                           description=description,
-                          start_date=start_date, 
+                        #   start_date=start_date, 
                           end_date=end_date,
                           user_id=user_id
                           )
@@ -294,7 +293,7 @@ class Task (db.Model):
                             nullable=True,
                             unique=False)
     
-    _valid_types = {'Task','Meeting'}
+    _valid_types = {'task','meeting'}
 
     type = db.Column(db.String, nullable=False, default='Task')
     
@@ -314,8 +313,8 @@ class Task (db.Model):
                             nullable=False,
                             default=datetime.utcnow)
     
-    start_date = db.Column(db.DateTime,
-                           nullable=False)
+    # start_date = db.Column(db.DateTime,
+    #                        nullable=False)
 
     end_date = db.Column(db.DateTime,
                            nullable=False)
@@ -375,7 +374,7 @@ class Task (db.Model):
             "status": self.status,
             "created_at": self.created_at,
             "modified_at": self.modified_at,
-            "start_date": self.start_date,
+            # "start_date": self.start_date,
             "end_date": self.end_date,
             "user_id": self.user_id,
             "meeting_user_id": self.meeting_user_id,
@@ -384,7 +383,7 @@ class Task (db.Model):
     
 
     @classmethod
-    def create_new_task(cls, task_name, description, notes, type, priority, status, start_date, end_date, user_id, meeting_user_id, project_id):
+    def create_new_task(cls, task_name, description, notes, type, priority, status, end_date, user_id, meeting_user_id, project_id):
         """create a new task and create """
 
         task = Task(task_name=task_name,
@@ -393,7 +392,7 @@ class Task (db.Model):
                           type=type,
                           priority=priority,
                           status=status,
-                          start_date=start_date, 
+                        #   start_date=start_date, 
                           end_date=end_date,
                           user_id=user_id,
                           meeting_user_id=meeting_user_id,

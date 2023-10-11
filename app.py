@@ -8,7 +8,7 @@ import requests
 from models import db, connect_db, User, Team, Project, Task, Conversation, UserProject
 from Archives.forms import CreateProjectForm
 from datetime import datetime, timedelta
-from controller import create_new_project_conversation
+from controller import generate_ai_tasks
 
 app = Flask(__name__)
 
@@ -25,6 +25,47 @@ if app.config['ENV'] == 'development':
     toolbar = DebugToolbarExtension(app)
 app.app_context().push()
 connect_db(app)
+
+# #*******************************************************************************************************************************
+# ENDPOINTS
+
+
+@app.route("/prioritypilot/api/projects", methods=['POST'])
+def create_new_project():
+    """Create a new project"""
+
+    project_name = request.json.get('project_name')
+    description = request.json.get('description')
+    # prompt = request.json.get('prompt')
+    # start_date = request.json.get('start_date')
+    end_date = request.json.get('end_date')
+    user_id = request.json.get('user_id')
+    ai = request.json.get('ai_recommendation')
+
+    user = User.query.get_or_404(user_id)
+
+    #NEED TO ADD JWT AUTHORIZATION
+
+    project = Project.create_new_project(project_name=project_name,
+                                         description=description,
+                                        #  start_date=start_date,
+                                         end_date=end_date,
+                                         user_id=user_id)
+    
+    if ai:
+    
+        prompt = f'I am a {user.role}. I am working on a project titled {project_name}. The deadline is {end_date}. Here is a description: {description}'
+        messages = generate_ai_tasks(project.id, user.id, prompt)        
+        conversation = Conversation(user_id=user_id,
+                                    project_id=project.id)
+        
+        conversation.set_messages(messages)
+
+
+    return jsonify(project = project.serialize()), 200
+    
+    # return jsonify(project = project.serialize()), 200
+    
 
 
 
@@ -554,51 +595,7 @@ connect_db(app)
     
 #     return jsonify(team = team.serialize()), 200
 
-@app.route("/prioritypilot/api/projects", methods=['POST'])
-def create_new_project():
-    """Create a new project"""
 
-    project_name = request.json.get('project_name')
-    description = request.json.get('description')
-    prompt = request.json.get('prompt')
-    start_date = request.json.get('start_date')
-    end_date = request.json.get('end_date')
-    user_id = request.json.get('user_id')
-
-
-
-    user = User.query.get_or_404(user_id)
-
-
-    project = Project.create_new_project(project_name=project_name,
-                                         description=description,
-                                         start_date=start_date,
-                                         end_date=end_date,
-                                         user_id=user_id)
-    
-    if prompt:
-    
-        messages = create_new_project_conversation(prompt)
-        # conversation = Conversation.create_new_conversation(user_id=user_id,
-        #                                                     conversation_type=ConversationType.NEW_PROJECT,
-        #                                                     task_id="",
-        #                                                     project_id=project.id)
-        
-        conversation = Conversation(user_id=user_id,
-                                    project_id=project.id)
-        
-        conversation.set_messages(messages)
-
-        project_plan = conversation.get_messages()[-1]['content']
-
-
-
-
-
-    # return jsonify(project = project.serialize(), project_plan=project_plan), 200
-    
-    # return jsonify(project = project.serialize()), 200
-    
     
 
 
