@@ -8,6 +8,7 @@ import requests
 from models import db, connect_db, User, Team, Project, Task, Conversation, UserProject
 from datetime import datetime, timedelta
 from controller import generate_ai_tasks
+from flask_cors import CORS
 
 app = Flask(__name__)
 
@@ -24,6 +25,7 @@ if app.config['ENV'] == 'development':
     toolbar = DebugToolbarExtension(app)
 app.app_context().push()
 connect_db(app)
+CORS(app)
 
 # #*******************************************************************************************************************************
 # ENDPOINTS
