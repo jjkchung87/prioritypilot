@@ -29,6 +29,8 @@ connect_db(app)
 # #*******************************************************************************************************************************
 # ENDPOINTS
 
+# #*******************************************************************************************************************************
+# NEW PROJECT
 
 @app.route("/prioritypilot/api/projects", methods=['POST'])
 def create_new_project():
@@ -67,7 +69,65 @@ def create_new_project():
     # return jsonify(project = project.serialize()), 200
     
 
+# #*******************************************************************************************************************************
+# SIGNUP
 
+@app.route("/prioritypilot/api/users/signup", methods=["POST"])
+def signup_endpoint():
+    """Endpoint for new user sign up"""
+
+    email = request.json.get('email')
+    first_name = request.json.get('first_name')
+    last_name = request.json.get('last_name')
+    password = request.json.get('password')
+    role = request.json.get('role')
+    team_name = request.json.get('team')
+
+    # Check if a user with the provided email already exists
+    existing_user = User.query.filter_by(email=email).first()
+
+    if existing_user:
+        # Return an error response if the user already exists
+        return jsonify({"message": "User with this email already exists."}), 409
+
+    # Call User.signup class method to create a new user
+    user = User.signup(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        password=password,
+        team_name=team_name,
+        role=role
+    )
+
+    # Return the serialized user data along with a success response
+    return jsonify({"user": user.serialize(), "message": "User signup successful!"}), 201
+
+    
+# #*******************************************************************************************************************************
+# LOGIN
+
+@app.route("/prioritypilot/api/users/login", methods=["POST"])
+def login_endpoint():
+    """Endpoint for user login"""
+
+    email = request.json.get('email')
+    password = request.json.get('password')
+
+    if not email or not password:
+        # Check for missing email or password
+        return jsonify({"message": "Email and password are required."}), 400
+
+    user = User.authenticate(email, password)
+
+    if not user:
+        # Check for incorrect email/password
+        return jsonify({"message": "Incorrect email or password."}), 401
+
+    # Return the serialized user data along with a success response
+    return jsonify({"user": user.serialize(), "message": "User login successful!"}), 200
+
+    
 
 # #*******************************************************************************************************************************
 # #CURRENT USER AND SESSION MANAGEMENT

@@ -22,11 +22,17 @@ db.session.commit()
 email = "barry@company.com"
 first_name = "Barry"
 last_name = "Dunderwerk"
-team_id=t1.id
+team_name="Product_management",
 role = "Product_Manager"
 password = "Barry123!!!"
 
-test_user = User.signup(email, first_name, last_name, team_id, role, password)
+test_user = User.signup(email, 
+                        first_name, 
+                        last_name, 
+                        team_name, 
+                        role,
+                        password 
+                        )
 
 
 # Create other teams

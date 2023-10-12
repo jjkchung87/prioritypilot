@@ -97,18 +97,24 @@ class User(db.Model):
 
     
     @classmethod
-    def signup(cls, email, first_name, last_name, team_id, role, password, profile_img=DEFAULT_URL):
+    def signup(cls, email, first_name, last_name, team_name, role, password, profile_img=DEFAULT_URL):
         """Sign up a new user with password hashing"""
 
         hashed = bcrypt.generate_password_hash(password)
         hashed_utf8 = hashed.decode("utf8")
+        team = Team.query.filter_by(name=team_name).first()
+
+        if not team:
+            team = Team(name=team_name)
+            db.session.add(team)
+            db.session.commit()
 
         user = User( 
             email=email,
             password=hashed_utf8,
             first_name=first_name,
             last_name=last_name,
-            team_id=team_id,
+            team_id=team.id,
             role=role,
             profile_img=profile_img)
         
@@ -146,10 +152,10 @@ class Team (db.Model):
                            default=datetime.utcnow)
         
 
-    @validates('name')
-    def convert_to_lowercase(self, key, value):
-        """first line of defence to convert team name to lowercase"""
-        return value.lower()
+    # @validates('name')
+    # def convert_to_lowercase(self, key, value):
+    #     """first line of defence to convert team name to lowercase"""
+    #     return value.lower()
     
     def __repr__(self):
         """Better representation of team model"""
