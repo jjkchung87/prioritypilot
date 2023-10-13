@@ -9,6 +9,8 @@ from models import db, connect_db, User, Team, Project, Task, Conversation, User
 from datetime import datetime, timedelta
 from controller import generate_ai_tasks
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+
 
 app = Flask(__name__)
 
@@ -20,55 +22,19 @@ app.config['EXPLAIN_TEMPLATE_LOADING'] = True
 app.config['SQLALCHEMY_ECHO'] = False
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
+app.config['JWT_SECRET_KEY'] = 'SECRET KEY FOR JWT'  # Replace with your own secret key
+
 app.debug=True
 if app.config['ENV'] == 'development':
     toolbar = DebugToolbarExtension(app)
 app.app_context().push()
 connect_db(app)
 CORS(app)
+jwt = JWTManager(app)
+
 
 # #*******************************************************************************************************************************
 # ENDPOINTS
-
-# #*******************************************************************************************************************************
-# NEW PROJECT
-
-@app.route("/prioritypilot/api/projects", methods=['POST'])
-def create_new_project():
-    """Create a new project"""
-
-    project_name = request.json.get('project_name')
-    description = request.json.get('description')
-    # prompt = request.json.get('prompt')
-    # start_date = request.json.get('start_date')
-    end_date = request.json.get('end_date')
-    user_id = request.json.get('user_id')
-    ai = request.json.get('ai_recommendation')
-
-    user = User.query.get_or_404(user_id)
-
-    #NEED TO ADD JWT AUTHORIZATION
-
-    project = Project.create_new_project(project_name=project_name,
-                                         description=description,
-                                        #  start_date=start_date,
-                                         end_date=end_date,
-                                         user_id=user_id)
-    
-    if ai:
-    
-        prompt = f'I am a {user.role}. I am working on a project titled {project_name}. The deadline is {end_date}. Here is a description: {description}'
-        messages = generate_ai_tasks(project.id, user.id, prompt)        
-        conversation = Conversation(user_id=user_id,
-                                    project_id=project.id)
-        
-        conversation.set_messages(messages)
-
-
-    return jsonify(project = project.serialize()), 200
-    
-    # return jsonify(project = project.serialize()), 200
-    
 
 # #*******************************************************************************************************************************
 # SIGNUP
@@ -101,9 +67,11 @@ def signup_endpoint():
         role=role
     )
 
-    # Return the serialized user data along with a success response
-    return jsonify({"user": user.serialize(), "message": "User signup successful!"}), 201
+    # Create a JWT access token for the newly registered user
+    access_token = create_access_token(identity=email)  # You can customize the token payload
 
+    # Return the serialized user data along with the token in the response
+    return jsonify({"user": user.serialize(), "access_token": access_token, "message": "User signup successful!"}), 201
     
 # #*******************************************************************************************************************************
 # LOGIN
@@ -121,14 +89,137 @@ def login_endpoint():
 
     user = User.authenticate(email, password)
 
+    # Create a JWT access token for the newly registered user
+    access_token = create_access_token(identity=email)  # You can customize the token payload
+
     if not user:
         # Check for incorrect email/password
         return jsonify({"message": "Incorrect email or password."}), 401
 
     # Return the serialized user data along with a success response
-    return jsonify({"user": user.serialize(), "message": "User login successful!"}), 200
+    return jsonify({"user": user.serialize(), "access_token": access_token, "message": "User login successful!"}), 200
 
+
+# #*******************************************************************************************************************************
+# NEW PROJECT
+
+@app.route("/prioritypilot/api/projects", methods=['POST'], endpoint="create_new_project")
+@jwt_required()
+def create_new_project():
+    """Create a new project"""
+
+    email = get_jwt_identity()
+
+    project_name = request.json.get('project_name')
+    description = request.json.get('description')
+    # prompt = request.json.get('prompt')
+    # start_date = request.json.get('start_date')
+    end_date = request.json.get('end_date')
+    user_id = request.json.get('user_id')
+    ai = request.json.get('ai_recommendation')
+
+    user = User.query.filter_by(email=email).one()
+
+    if user.id != user_id:
+        return jsonify({"message": "Not authorized."}), 401
+
+
+    project = Project.create_new_project(project_name=project_name,
+                                         description=description,
+                                        #  start_date=start_date,
+                                         end_date=end_date,
+                                         user_id=user_id)
     
+    if ai:
+    
+        prompt = f'I am a {user.role}. I am working on a project titled {project_name}. The deadline is {end_date}. Here is a description: {description}'
+        messages = generate_ai_tasks(project.id, user.id, prompt)        
+        conversation = Conversation(user_id=user_id,
+                                    project_id=project.id)
+        
+        conversation.set_messages(messages)
+
+
+    return jsonify(project = project.serialize()), 200
+    
+    # return jsonify(project = project.serialize()), 200
+    
+
+
+# #*******************************************************************************************************************************
+# NEW TASK
+
+@app.route("/prioritypilot/api/projects/<int:project_id>/task", methods=["POST"], endpoint="create_new_task")
+@jwt_required()
+def create_new_task(project_id):
+    """Endpoint to create a new task"""
+
+    email = get_jwt_identity()
+
+    task_name= request.json.get('title')
+    description= request.json.get('description')
+    priority= request.json.get('priority')
+    end_date= request.json.get('deadline')
+    project_id= project_id
+    user_id= request.json.get('user_id')
+    notes=""
+    
+    user = User.query.filter_by(email=email).one()
+
+    if user.id != user_id:
+        return jsonify({"message": "Not authorized."}), 401
+
+    else:
+        t = Task(task_name=task_name,
+                description=description,
+                priority=priority,
+                end_date=end_date,
+                project_id=project_id,
+                user_id=user_id,
+                notes=notes
+                )
+    
+        db.session.add(t)
+        db.session.commit()
+
+        return jsonify({"task": t.serialize(), "message": "Task created!"}), 200
+
+# #*******************************************************************************************************************************
+# EDIT TASK
+@app.route("/prioritypilot/api/projects/<int:project_id>/task/<int:task_id>", methods=["PATCH"], endpoint="edit_task")
+@jwt_required()
+def edit_task(project_id, task_id):
+    """Endpoint to edit a task"""
+
+    email = get_jwt_identity()
+
+    task_name = request.json.get('title')
+    description = request.json.get('description')
+    priority = request.json.get('priority')
+    end_date = request.json.get('deadline')
+    status = request.json.get('status')
+    user_id = request.json.get('user_id')
+    modified_at = datetime.utcnow()
+
+    user = User.query.filter_by(email=email).one()
+
+    if user.id != user_id:
+        return jsonify({"message": "Not authorized."}), 401
+
+    task = Task.query.get_or_404(task_id)
+
+    # Update the task's information
+    task.task_name = task_name
+    task.description = description
+    task.priority = priority
+    task.end_date = end_date
+    task.status = status
+    task.modified_at = modified_at
+
+    db.session.commit()
+
+    return jsonify({"task": task.serialize(), "message": "Task updated!"}), 200
+
 
 # #*******************************************************************************************************************************
 # #CURRENT USER AND SESSION MANAGEMENT

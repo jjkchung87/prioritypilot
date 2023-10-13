@@ -86,7 +86,7 @@ for project in projects:
             description=fake.text(),
             type=task_type,
             status=random.choice(["Not Started", "In Progress", "Complete", "Delayed"]),
-            priority=random.choice(["Low", "Moderate", "High"]),
+            priority=random.choice(["Low", "Medium", "High"]),
             # start_date=fake.date_time_this_decade(),
             end_date=fake.date_time_this_decade(),
             user_id=test_user.id,

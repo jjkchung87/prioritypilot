@@ -223,10 +223,10 @@ class Project (db.Model):
 
     # users = db.relationship("Users", secondary="users_projects", backref="projects")
     
-    @validates('project_name')
-    def convert_to_lowercase(self, key, value):
-        """first line of defence to convert project name to lowercase"""
-        return value.lower()
+    # @validates('project_name')
+    # def convert_to_lowercase(self, key, value):
+    #     """first line of defence to convert project name to lowercase"""
+    #     return value.lower()
 
     @validates('status')
     def validate_status(self, key, value):
@@ -301,15 +301,15 @@ class Task (db.Model):
     
     _valid_types = {'task','meeting'}
 
-    type = db.Column(db.String, nullable=False, default='Task')
+    type = db.Column(db.String, nullable=False, default='task')
     
     _valid_statuses = {'Not Started', 'In Progress', 'Complete', 'Delayed'}
 
     status = db.Column(db.String, nullable=False, default='Not Started')
 
-    _valid_priorities = {'Low','Moderate','High'}
+    _valid_priorities = {'Low','Medium','High'}
 
-    priority = db.Column(db.String, nullable=False, default='Moderate')
+    priority = db.Column(db.String, nullable=False, default='Medium')
     
     created_at = db.Column(db.DateTime,
                            nullable=False,
@@ -339,11 +339,6 @@ class Task (db.Model):
 
     # users = db.relationship("Users", secondary="users_tasks", backref="tasks")
 
-
-    @validates('task_name')
-    def convert_to_lowercase(self, key, value):
-        """first line of defence to convert task name to lowercase"""
-        return value.lower()
 
     @validates('type')
     def validate_type(self, key, value):
