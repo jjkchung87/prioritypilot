@@ -82,5 +82,73 @@ def generate_ai_tasks(project_id, user_id, prompt):
          "content":task_list}
     )
 
-    return messages
+    messages_no_system = messages[1:]
+
+    return messages_no_system
     
+def generate_ai_tips(project_id, task_id):
+    """Generate tips for tasks from AI"""
+
+    conversation = Conversation.query.filter_by(project_id=project_id).one()
+  
+    task = Task.query.get_or_404(task_id)
+    task_name = task.task_name
+    content = f"I am having trouble with the task: '{task_name}'. Give me 3 tips of how I can navigate this task. Your output should only include an array of 3 tips and nothing else."
+
+    system_message = {"role": "system", 
+        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array of 3 tips and nothing else."
+    }
+
+    new_message = {
+        "role": "user",
+        "content": content  # Ensure content is a valid JSON string
+    }
+
+    messages = conversation.get_messages()
+    messages.append(new_message)
+    messages.insert(0, system_message)
+
+    # Create a separate message for the tasks
+    task_message = {
+        "role": "assistant",
+        "content": json.dumps([{"task_name": task.task_name, "type": "task", "description": task.description, "date_time": task.date_time}])
+    }
+    messages.append(task_message)
+    
+    print('*************************************')
+    print(messages)
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=messages
+    )
+    
+    tips_str = response.choices[0].message["content"]
+    tips = json.loads(tips_str)
+    
+    print("*************converted to Python********************")
+    print(tips)
+    print(type(tips))
+    
+    # Append the tips to the messages list without converting to JSON
+    messages.append(
+        {
+            "role": "assistant",
+            "content": tips
+        }
+    )
+    
+    conversation.set_messages(messages)
+
+    return tips
+
+
+
+
+
+    # messages = [
+	#     {"role": "system", 
+	# 	"content": 'You will give me a list of helpful tips on how to achieve a certain task. The output should be an array. No more than 3 tips.'
+	# 	},
+	# 	{"role": "user", "content": prompt}
+    # 	]

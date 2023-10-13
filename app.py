@@ -7,7 +7,7 @@ from sqlalchemy import func, and_, case
 import requests
 from models import db, connect_db, User, Team, Project, Task, Conversation, UserProject
 from datetime import datetime, timedelta
-from controller import generate_ai_tasks
+from controller import generate_ai_tasks, generate_ai_tips
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
 
@@ -49,6 +49,7 @@ def signup_endpoint():
     password = request.json.get('password')
     role = request.json.get('role')
     team_name = request.json.get('team')
+    profile_img = request.json.get('profile_img_url')
 
     # Check if a user with the provided email already exists
     existing_user = User.query.filter_by(email=email).first()
@@ -64,7 +65,8 @@ def signup_endpoint():
         last_name=last_name,
         password=password,
         team_name=team_name,
-        role=role
+        role=role,
+        profile_img=profile_img
     )
 
     # Create a JWT access token for the newly registered user
@@ -98,6 +100,18 @@ def login_endpoint():
 
     # Return the serialized user data along with a success response
     return jsonify({"user": user.serialize(), "access_token": access_token, "message": "User login successful!"}), 200
+
+# #*******************************************************************************************************************************
+# GET USER
+
+@app.route("/prioritypilot/api/users/<int:user_id>", methods=["GET"])
+def get_single_user(user_id):
+    """Endpoint to get single user"""
+
+    user = User.query.get_or_404(user_id)
+
+    # Return the serialized user data along with a success response
+    return jsonify({"user": user.serialize(), "message": "Retrieved user!"}), 200
 
 
 # #*******************************************************************************************************************************
@@ -136,6 +150,9 @@ def create_new_project():
         messages = generate_ai_tasks(project.id, user.id, prompt)        
         conversation = Conversation(user_id=user_id,
                                     project_id=project.id)
+        
+        db.session.add(conversation)
+        db.session.commit()
         
         conversation.set_messages(messages)
 
@@ -183,6 +200,32 @@ def create_new_task(project_id):
         db.session.commit()
 
         return jsonify({"task": t.serialize(), "message": "Task created!"}), 200
+# #*******************************************************************************************************************************
+# GET AI TIP
+
+@app.route("/prioritypilot/api/projects/<int:project_id>/task/<int:task_id>", methods=['POST'], endpoint="get_ai_tips")
+@jwt_required()
+def get_ai_tips_endpoint(project_id, task_id):
+    """Create a new project"""
+
+    email = get_jwt_identity()
+    user = User.query.filter_by(email=email).one()
+    user_id = request.json.get('user_id')
+    
+    if user.id != user_id:
+        return jsonify({"message": "Not authorized."}), 401
+
+    project_id=project_id
+    task_id = task_id
+
+    tips = generate_ai_tips(project_id, task_id)
+
+
+    return jsonify({"tips":tips, "message":"Tips generated!"}), 200
+    
+    # return jsonify(project = project.serialize()), 200
+    
+
 
 # #*******************************************************************************************************************************
 # EDIT TASK

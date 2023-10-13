@@ -81,6 +81,7 @@ class User(db.Model):
             "last_name": self.last_name,
             "team_id": self.team_id,
             "role": self.role,
+            "profile_img": self.profile_img,
             "projects": [project.serialize() for project in self.projects]
         }
     
