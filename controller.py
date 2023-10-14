@@ -96,7 +96,7 @@ def generate_ai_tips(project_id, task_id):
     content = f"I am having trouble with the task: '{task_name}'. Give me 3 tips of how I can navigate this task. Your output should only include an array of 3 tips and nothing else."
 
     system_message = {"role": "system", 
-        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array of 3 tips and nothing else."
+        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array data type of 3 tips and nothing else."
     }
 
     new_message = {
@@ -105,18 +105,22 @@ def generate_ai_tips(project_id, task_id):
     }
 
     messages = conversation.get_messages()
+
+    # Iterate through messages and convert content to JSON if it's a list
+    for message in messages:
+        if isinstance(message['content'], list):
+            message['content'] = json.dumps(message['content'])
+    
     messages.append(new_message)
     messages.insert(0, system_message)
 
     # Create a separate message for the tasks
-    task_message = {
-        "role": "assistant",
-        "content": json.dumps([{"task_name": task.task_name, "type": "task", "description": task.description, "date_time": task.date_time}])
-    }
-    messages.append(task_message)
-    
+  
     print('*************************************')
     print(messages)
+    print('m - type:', type(messages))
+    print('system - type:', type(system_message))
+    print('new_message - type:', type(new_message))
 
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
@@ -124,6 +128,9 @@ def generate_ai_tips(project_id, task_id):
     )
     
     tips_str = response.choices[0].message["content"]
+    print('*****************TIPS RESPONSE********************')
+    print(tips_str)
+
     tips = json.loads(tips_str)
     
     print("*************converted to Python********************")
@@ -131,14 +138,17 @@ def generate_ai_tips(project_id, task_id):
     print(type(tips))
     
     # Append the tips to the messages list without converting to JSON
-    messages.append(
-        {
+    new_message_for_db = {
             "role": "assistant",
             "content": tips
         }
-    )
     
-    conversation.set_messages(messages)
+    print('*******************UPDATED MESSAGES******************')
+    print(new_message_for_db)
+
+
+
+    conversation.set_messages(new_message_for_db)
 
     return tips
 
@@ -152,3 +162,6 @@ def generate_ai_tips(project_id, task_id):
 	# 	},
 	# 	{"role": "user", "content": prompt}
     # 	]
+
+
+    
