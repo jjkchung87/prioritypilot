@@ -67,10 +67,10 @@ def signup_endpoint():
         team_name=team_name,
         role=role,
         profile_img=profile_img
-    )
+    ) 
 
-    # Create a JWT access token for the newly registered user
-    access_token = create_access_token(identity=email)  # You can customize the token payload
+    # Create an access token with the custom payload
+    access_token = create_access_token(identity=user.id)
 
     # Return the serialized user data along with the token in the response
     return jsonify({"user": user.serialize(), "access_token": access_token, "message": "User signup successful!"}), 201
@@ -91,8 +91,9 @@ def login_endpoint():
 
     user = User.authenticate(email, password)
 
-    # Create a JWT access token for the newly registered user
-    access_token = create_access_token(identity=email)  # You can customize the token payload
+
+    # Create an access token with the custom payload
+    access_token = create_access_token(identity=user.id)
 
     if not user:
         # Check for incorrect email/password
@@ -122,7 +123,7 @@ def get_single_user(user_id):
 def create_new_project():
     """Create a new project"""
 
-    email = get_jwt_identity()
+    token_id = get_jwt_identity()
 
     project_name = request.json.get('project_name')
     description = request.json.get('description')
@@ -132,9 +133,9 @@ def create_new_project():
     user_id = request.json.get('user_id')
     ai = request.json.get('ai_recommendation')
 
-    user = User.query.filter_by(email=email).one()
+    user = User.query.get_or_404(user_id)
 
-    if user.id != user_id:
+    if token_id!= user_id:
         return jsonify({"message": "Not authorized."}), 401
 
 
@@ -171,7 +172,7 @@ def create_new_project():
 def create_new_task(project_id):
     """Endpoint to create a new task"""
 
-    email = get_jwt_identity()
+    token_id = get_jwt_identity()
 
     task_name= request.json.get('title')
     description= request.json.get('description')
@@ -180,11 +181,11 @@ def create_new_task(project_id):
     project_id= project_id
     user_id= request.json.get('user_id')
     notes=""
-    
-    user = User.query.filter_by(email=email).one()
 
-    if user.id != user_id:
-        return jsonify({"message": "Not authorized."}), 401
+    project = Project.query.get_or_404(project_id)
+
+    if token_id != project.user_id:
+        return jsonify({"message": "Not authorized to add a task to this project."}), 401
 
     else:
         t = Task(task_name=task_name,
@@ -209,7 +210,7 @@ def create_new_task(project_id):
 def edit_task(project_id, task_id):
     """Endpoint to edit a task"""
 
-    email = get_jwt_identity()
+    token_id = get_jwt_identity()
 
     task_name = request.json.get('title')
     description = request.json.get('description')
@@ -219,10 +220,11 @@ def edit_task(project_id, task_id):
     user_id = request.json.get('user_id')
     modified_at = datetime.utcnow()
 
-    user = User.query.filter_by(email=email).one()
+    project = Project.query.get_or_404(project_id)
 
-    if user.id != user_id:
-        return jsonify({"message": "Not authorized."}), 401
+    if token_id != project.user_id:
+        return jsonify({"message": "Not authorized to edit task for this project."}), 401
+
 
     task = Task.query.get_or_404(task_id)
 
@@ -246,15 +248,12 @@ def edit_task(project_id, task_id):
 def get_ai_tips_endpoint(project_id, task_id):
     """AI tips for single task"""
 
-    email = get_jwt_identity()
-    user = User.query.filter_by(email=email).one()
-    user_id = request.json.get('user_id')
-    
-    if user.id != user_id:
-        return jsonify({"message": "Not authorized."}), 401
+    token_id = get_jwt_identity()
 
-    project_id=project_id
-    task_id = task_id
+    project = Project.query.get_or_404(project_id)
+
+    if token_id != project.user_id:
+        return jsonify({"message": "Not authorized to edit task for this project."}), 401
 
     tips = generate_ai_tips(project_id, task_id)
 
