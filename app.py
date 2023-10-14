@@ -200,31 +200,6 @@ def create_new_task(project_id):
         db.session.commit()
 
         return jsonify({"task": t.serialize(), "message": "Task created!"}), 200
-# #*******************************************************************************************************************************
-# GET AI TIP
-
-@app.route("/prioritypilot/api/projects/<int:project_id>/task/<int:task_id>", methods=['POST'], endpoint="get_ai_tips")
-@jwt_required()
-def get_ai_tips_endpoint(project_id, task_id):
-    """Create a new project"""
-
-    email = get_jwt_identity()
-    user = User.query.filter_by(email=email).one()
-    user_id = request.json.get('user_id')
-    
-    if user.id != user_id:
-        return jsonify({"message": "Not authorized."}), 401
-
-    project_id=project_id
-    task_id = task_id
-
-    tips = generate_ai_tips(project_id, task_id)
-
-
-    return jsonify({"tips":tips, "message":"Tips generated!"}), 200
-    
-    # return jsonify(project = project.serialize()), 200
-    
 
 
 # #*******************************************************************************************************************************
@@ -263,6 +238,31 @@ def edit_task(project_id, task_id):
 
     return jsonify({"task": task.serialize(), "message": "Task updated!"}), 200
 
+# #*******************************************************************************************************************************
+# GET AI TIPS FOR SINGLE TASK
+
+@app.route("/prioritypilot/api/projects/<int:project_id>/task/<int:task_id>", methods=['POST'], endpoint="get_ai_tips")
+@jwt_required()
+def get_ai_tips_endpoint(project_id, task_id):
+    """AI tips for single task"""
+
+    email = get_jwt_identity()
+    user = User.query.filter_by(email=email).one()
+    user_id = request.json.get('user_id')
+    
+    if user.id != user_id:
+        return jsonify({"message": "Not authorized."}), 401
+
+    project_id=project_id
+    task_id = task_id
+
+    tips = generate_ai_tips(project_id, task_id)
+
+
+    return jsonify({"tips":tips, "message":"Tips generated!"}), 200
+    
+    # return jsonify(project = project.serialize()), 200
+    
 
 # #*******************************************************************************************************************************
 # #CURRENT USER AND SESSION MANAGEMENT
