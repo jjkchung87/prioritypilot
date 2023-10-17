@@ -16,7 +16,7 @@ def generate_ai_tasks(project_id, user_id, prompt):
 	
     messages = [
 	    {"role": "system", 
-		"content": 'You will be asked to recommend an array of tasks to complete a project. Your output should ONLY include an array of task objects like this: [{}, {}]. Task objects should have this shape {"task_name", "type":"task", "description", "date_time"}. "date_time" should have "MM-DD-YYYY HH:MM" format. The first task should have a "date_time" that is todays date. '
+		"content": 'You will be asked to recommend an array of tasks to complete a project. Your output should ONLY include an array of task objects like this: [{}, {}]. Task objects should have this shape {"task_name", "type":"task", "description", "date_time"}. "date_time" should have "MM-DD-YYYY HH:MM" format. No task should have a date before today. '
 		},
 		{"role": "user", "content": prompt}
     	]
@@ -27,7 +27,9 @@ def generate_ai_tasks(project_id, user_id, prompt):
 		model="gpt-3.5-turbo",
 		messages=messages
 	)
-    
+    print("***************prompt******************")
+    print(prompt)
+
     print("***************from ChatGPT******************")
     print(response.choices[0].message.content)
     print(type(response.choices[0].message.content))

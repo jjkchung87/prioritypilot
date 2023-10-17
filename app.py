@@ -23,6 +23,7 @@ app.config['SQLALCHEMY_ECHO'] = False
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 app.config['JWT_SECRET_KEY'] = 'SECRET KEY FOR JWT'  # Replace with your own secret key
+app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=24)  # Set expiration to 24 hours
 
 app.debug=True
 if app.config['ENV'] == 'development':
@@ -146,8 +147,8 @@ def create_new_project():
                                          user_id=user_id)
     
     if ai:
-    
-        prompt = f'I am a {user.role}. I am working on a project titled {project_name}. The deadline is {end_date}. Here is a description: {description}'
+        today = datetime.utcnow()
+        prompt = f'I am a {user.role}. I am working on a project titled {project_name}. The deadline for the project is {end_date}. Here is a description: {description}. The first task for this project should be on {today}.'
         messages = generate_ai_tasks(project.id, user.id, prompt)        
         conversation = Conversation(user_id=user_id,
                                     project_id=project.id)
@@ -202,6 +203,42 @@ def create_new_task(project_id):
 
         return jsonify({"task": t.serialize(), "message": "Task created!"}), 200
 
+# #*******************************************************************************************************************************
+# GET ALL USERS TASKS
+@app.route("/prioritypilot/api/users/<int:user_id>/tasks", methods=["GET"], endpoint="get_users_tasks")
+@jwt_required()
+def get_users_tasks(user_id):
+    """Endpoint to tasks for a user"""
+
+    token_id = get_jwt_identity()
+        
+    if token_id != user_id:
+        return jsonify({"message": "Not authorized to get tasks for this user."}), 401
+
+
+    tasks = Task.query.filter_by(user_id=user_id).all()
+
+    return jsonify({"tasks": [task.serialize() for task in tasks], "message": "Received all user's tasks"}), 200
+
+# #*******************************************************************************************************************************
+# GET ALL TASKS FOR A PROJECT
+
+@app.route("/prioritypilot/api/projects/<int:project_id>/tasks", methods=["GET"], endpoint="get_projects_tasks")
+@jwt_required()
+def get_projects_tasks(project_id):
+    """Endpoint to get all tasks for a project"""
+
+    token_id = get_jwt_identity()
+
+    project = Project.query.get_or_404(project_id)
+
+    if token_id != project.user_id:
+        return jsonify({"message": "Not authorized to get tasks for this project."}), 401
+
+
+    tasks = Task.query.filter_by(project_id=project_id).all()
+
+    return jsonify({"tasks": [task.serialize() for task in tasks], "message": f"Received all of project {project.project_name}'s tasks"}), 200
 
 # #*******************************************************************************************************************************
 # EDIT TASK
