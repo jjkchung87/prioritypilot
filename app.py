@@ -241,8 +241,26 @@ def get_projects_tasks(project_id):
     return jsonify({"tasks": [task.serialize() for task in tasks], "message": f"Received all of project {project.project_name}'s tasks"}), 200
 
 # #*******************************************************************************************************************************
+# GET PROJECT BY ID
+
+@app.route("/prioritypilot/api/projects/<int:project_id>", methods=["GET"], endpoint="get_projects_by_id")
+@jwt_required()
+def get_projects_tasks(project_id):
+    """Endpoint to get all tasks for a project"""
+
+    token_id = get_jwt_identity()
+
+    project = Project.query.get_or_404(project_id)
+
+    if token_id != project.user_id:
+        return jsonify({"message": "Not authorized to get tasks for this project."}), 401
+
+
+    return jsonify({"project": project.serialize() , "message": f"Received data for {project.project_name}"}), 200
+
+# #*******************************************************************************************************************************
 # EDIT TASK
-@app.route("/prioritypilot/api/projects/<int:project_id>/task/<int:task_id>", methods=["PATCH"], endpoint="edit_task")
+@app.route("/prioritypilot/api/projects/<int:project_id>/tasks/<int:task_id>", methods=["PATCH"], endpoint="edit_task")
 @jwt_required()
 def edit_task(project_id, task_id):
     """Endpoint to edit a task"""
@@ -280,19 +298,21 @@ def edit_task(project_id, task_id):
 # #*******************************************************************************************************************************
 # GET AI TIPS FOR SINGLE TASK
 
-@app.route("/prioritypilot/api/projects/<int:project_id>/task/<int:task_id>", methods=['POST'], endpoint="get_ai_tips")
+@app.route("/prioritypilot/api/tasks/<int:task_id>/tip", methods=['POST'], endpoint="get_ai_tips")
 @jwt_required()
-def get_ai_tips_endpoint(project_id, task_id):
+def get_ai_tips_endpoint(task_id):
     """AI tips for single task"""
 
     token_id = get_jwt_identity()
 
-    project = Project.query.get_or_404(project_id)
+    task = Task.query.get_or_404(task_id)
+    
+    project = Project.query.get_or_404(task.project_id)
 
-    if token_id != project.user_id:
+    if token_id != task.user_id:
         return jsonify({"message": "Not authorized to edit task for this project."}), 401
 
-    tips = generate_ai_tips(project_id, task_id)
+    tips = generate_ai_tips(project.id, task_id)
 
 
     return jsonify({"tips":tips, "message":"Tips generated!"}), 200
