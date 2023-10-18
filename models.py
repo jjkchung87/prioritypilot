@@ -222,6 +222,8 @@ class Project (db.Model):
     
     tasks = db.relationship("Task", backref="project", cascade="all, delete-orphan")
 
+    conversations = db.relationship("Conversation", backref="project", cascade="all, delete-orphan")
+
     # users = db.relationship("Users", secondary="users_projects", backref="projects")
     
     # @validates('project_name')
@@ -366,6 +368,9 @@ class Task (db.Model):
     def serialize(self):
         """Serialize task to Python object"""
 
+        project = Project.query.get(self.project_id)
+        project_name = project.project_name
+
         return {
             "id": self.id,
             "task_name": self.task_name,
@@ -381,6 +386,7 @@ class Task (db.Model):
             "user_id": self.user_id,
             "meeting_user_id": self.meeting_user_id,
             "project_id": self.project_id,
+            "project_name": project_name
         }
     
 
@@ -407,10 +413,10 @@ class Task (db.Model):
         return task
     
 
-@event.listens_for(Task, 'before_insert')
-def convert_task_name_to_lowercase(mapper, connection, target):
-    """Second line of defence to convert task_name to lowercase"""
-    target.task_name = target.task_name.lower()
+# @event.listens_for(Task, 'before_insert')
+# def convert_task_name_to_lowercase(mapper, connection, target):
+#     """Second line of defence to convert task_name to lowercase"""
+#     target.task_name = target.task_name.lower()
 
 
     

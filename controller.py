@@ -91,14 +91,14 @@ def generate_ai_tasks(project_id, user_id, prompt):
 def generate_ai_tips(project_id, task_id):
     """Generate tips for tasks from AI"""
 
-    conversation = Conversation.query.filter_by(project_id=project_id).one()
-  
+
+
     task = Task.query.get_or_404(task_id)
     task_name = task.task_name
     content = f"I am having trouble with the task: '{task_name}'. Give me 3 tips of how I can navigate this task. Your output should only include an array of 3 tips and nothing else."
 
     system_message = {"role": "system", 
-        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array data type of 3 tips and nothing else."
+        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array data type of 3 strings and nothing else. Each tip should be no more than 15 words."
     }
 
     new_message = {
@@ -106,24 +106,29 @@ def generate_ai_tips(project_id, task_id):
         "content": content  # Ensure content is a valid JSON string
     }
 
-    messages = conversation.get_messages()
+    messages = [system_message, new_message]
 
-    # Iterate through messages and convert content to JSON if it's a list
-    for message in messages:
-        if isinstance(message['content'], list):
-            message['content'] = json.dumps(message['content'])
-    
-    messages.append(new_message)
-    messages.insert(0, system_message)
+    conversation = Conversation.query.filter_by(project_id=project_id).first()
 
-    # Create a separate message for the tasks
+    if conversation:
+        messages = conversation.get_messages()
+
+        # Iterate through messages and convert content to JSON if it's a list
+        for message in messages:
+            if isinstance(message['content'], list):
+                message['content'] = json.dumps(message['content'])
+        
+        messages.append(new_message)
+        messages.insert(0, system_message)
   
-    print('*************************************')
-    print(messages)
-    print('m - type:', type(messages))
-    print('system - type:', type(system_message))
-    print('new_message - type:', type(new_message))
-
+    else:
+        conversation = Conversation(user_id=task.user_id,
+                                    conversation_type="Assistance",
+                                    task_id = task_id,
+                                    project_id = project_id)
+        db.session.add(conversation)
+        db.session.commit()
+   
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=messages
@@ -134,15 +139,24 @@ def generate_ai_tips(project_id, task_id):
     print(tips_str)
 
     tips = json.loads(tips_str)
-    
+   
+  # Ensure "tips" contains only strings
+    updated_tips = []
+    for tip in tips:
+        if isinstance(tip, dict):
+            # Extract the value from the dictionary
+            updated_tips.append(next(iter(tip.values())))
+        elif isinstance(tip, str):
+            updated_tips.append(tip)
+
     print("*************converted to Python********************")
-    print(tips)
-    print(type(tips))
+    print(updated_tips)
+    print(type(updated_tips))
     
     # Append the tips to the messages list without converting to JSON
     new_message_for_db = {
             "role": "assistant",
-            "content": tips
+            "content": updated_tips
         }
     
     print('*******************UPDATED MESSAGES******************')
@@ -152,7 +166,7 @@ def generate_ai_tips(project_id, task_id):
 
     conversation.set_messages(new_message_for_db)
 
-    return tips
+    return updated_tips
 
 
 

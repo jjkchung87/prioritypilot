@@ -69,53 +69,53 @@ for i in range(4):
 
 db.session.commit()
 
-# Create 3 projects for the test user
-projects = []
-for i in range(3):
-    project = Project(
-        project_name=fake.company(),
-        description=fake.text(),
-        end_date=(datetime.now() + timedelta(days=30)).date(),
-        user_id=test_user.id,
-    )
-    db.session.add(project)
-    projects.append(project)
+# # Create 3 projects for the test user
+# projects = []
+# for i in range(3):
+#     project = Project(
+#         project_name=fake.company(),
+#         description=fake.text(),
+#         end_date=(datetime.now() + timedelta(days=30)).date(),
+#         user_id=test_user.id,
+#     )
+#     db.session.add(project)
+#     projects.append(project)
 
-db.session.commit()
+# db.session.commit()
 
-# Create 5 tasks for each project
-for project in projects:
-    for i in range(5):
-        task_type = "task"
-        if i < 2:
-            # Set 5 tasks to end in September 2023
-            end_date = datetime(2023, 9, i + 1).date()
-            status = "In Progress"
-        else:
-            # Set the remaining 10 tasks to end in November and December 2023
-            end_date = datetime(2023, 11, 2).date() if i < 4 else datetime(2023, 12, 15).date()
-            status=random.choice(["Not Started", "In Progress"])
+# # Create 5 tasks for each project
+# for project in projects:
+#     for i in range(5):
+#         task_type = "task"
+#         if i < 2:
+#             # Set 5 tasks to end in September 2023
+#             end_date = datetime(2023, 9, i + 1).date()
+#             status = "In Progress"
+#         else:
+#             # Set the remaining 10 tasks to end in November and December 2023
+#             end_date = datetime(2023, 11, 2).date() if i < 4 else datetime(2023, 12, 15).date()
+#             status=random.choice(["Not Started", "In Progress"])
 
 
-        task = Task(
-            task_name=fake.catch_phrase(),
-            description=fake.text(),
-            type=task_type,
-            status=status,
-            priority=random.choice(["Low", "Medium", "High"]),
-            end_date=end_date,
-            user_id=test_user.id,
-            project_id=project.id,
-        )
-        db.session.add(task)
+#         task = Task(
+#             task_name=fake.catch_phrase(),
+#             description=fake.text(),
+#             type=task_type,
+#             status=status,
+#             priority=random.choice(["Low", "Medium", "High"]),
+#             end_date=end_date,
+#             user_id=test_user.id,
+#             project_id=project.id,
+#         )
+#         db.session.add(task)
 
-db.session.commit()
+# db.session.commit()
 
-# Associate users with projects
-for project in projects:
-    user_project = UserProject(user_id=test_user.id, project_id=project.id)
-    db.session.add(user_project)
+# # Associate users with projects
+# for project in projects:
+#     user_project = UserProject(user_id=test_user.id, project_id=project.id)
+#     db.session.add(user_project)
 
-db.session.commit()
+# db.session.commit()
 
 print("Database seeded with users, teams, projects, and tasks.")

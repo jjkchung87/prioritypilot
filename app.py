@@ -14,6 +14,7 @@ from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity
 
 app = Flask(__name__)
 
+
 app.config['SQLALCHEMY_DATABASE_URI'] = (
     os.environ.get('DATABASE_URL', 'postgresql:///prioritypilot'))
 
@@ -30,8 +31,14 @@ if app.config['ENV'] == 'development':
     toolbar = DebugToolbarExtension(app)
 app.app_context().push()
 connect_db(app)
-CORS(app)
+CORS(app, resources={r"/prioritypilot/api/*": {"origins": "http://localhost:3000"}})
 jwt = JWTManager(app)
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
+    return response
+
 
 
 # #*******************************************************************************************************************************
@@ -259,41 +266,101 @@ def get_projects_tasks(project_id):
     return jsonify({"project": project.serialize() , "message": f"Received data for {project.project_name}"}), 200
 
 # #*******************************************************************************************************************************
-# EDIT TASK
-@app.route("/prioritypilot/api/projects/<int:project_id>/tasks/<int:task_id>", methods=["PATCH"], endpoint="edit_task")
+# DELETE PROJECT BY ID
+
+@app.route("/prioritypilot/api/projects/<int:project_id>", methods=["DELETE"], endpoint="delete_project_by_id")
 @jwt_required()
-def edit_task(project_id, task_id):
-    """Endpoint to edit a task"""
+def delete_project(project_id):
+    """Endpoint to delete project"""
 
     token_id = get_jwt_identity()
-
-    task_name = request.json.get('title')
-    description = request.json.get('description')
-    priority = request.json.get('priority')
-    end_date = request.json.get('deadline')
-    status = request.json.get('status')
-    user_id = request.json.get('user_id')
-    modified_at = datetime.utcnow()
 
     project = Project.query.get_or_404(project_id)
 
     if token_id != project.user_id:
-        return jsonify({"message": "Not authorized to edit task for this project."}), 401
+        return jsonify({"message": "Not authorized to delete this project."}), 401
+    
+    db.session.delete(project)
+    db.session.commit()
 
+
+    return jsonify({"message": f"{project.project_name} deleted!"}), 200
+
+# #*******************************************************************************************************************************
+# DELETE TASK BY ID
+
+@app.route("/prioritypilot/api/tasks/<int:task_id>", methods=["DELETE"], endpoint="delete_task_by_id")
+@jwt_required()
+def delete_task(task_id):
+    """Endpoint to delete task"""
+
+    token_id = get_jwt_identity()
 
     task = Task.query.get_or_404(task_id)
 
-    # Update the task's information
-    task.task_name = task_name
-    task.description = description
-    task.priority = priority
-    task.end_date = end_date
-    task.status = status
-    task.modified_at = modified_at
+    if token_id != task.user_id:
+        return jsonify({"message": "Not authorized to delete this task."}), 401
+    
+    db.session.delete(task)
+    db.session.commit()
 
+
+    return jsonify({"message": f"{task.task_name} deleted!"}), 200
+
+# #*******************************************************************************************************************************
+# GET PROJECT BY ID
+
+# @app.route("/prioritypilot/api/projects/<int:project_id>", methods=["GET"], endpoint="get_projects_by_id")
+# @jwt_required()
+# def get_projects_tasks(project_id):
+#     """Endpoint to get all tasks for a project"""
+
+#     token_id = get_jwt_identity()
+
+#     project = Project.query.get_or_404(project_id)
+
+#     if token_id != project.user_id:
+#         return jsonify({"message": "Not authorized to get tasks for this project."}), 401
+
+
+#     return jsonify({"project": project.serialize() , "message": f"Received data for {project.project_name}"}), 200
+
+# #*******************************************************************************************************************************
+# EDIT TASK
+
+@app.route("/prioritypilot/api/projects/<int:project_id>/tasks/<int:task_id>", methods=["PATCH"], endpoint="edit_task")
+@jwt_required()
+def edit_task(project_id, task_id):
+    token_id = get_jwt_identity()
+
+    # Get the task to be updated
+    task = Task.query.get_or_404(task_id)
+
+    # Check if the task belongs to the project
+    if task.project_id != project_id:
+        return jsonify({"message": "Task does not belong to this project."}), 403
+
+    # Receive the fields to be updated from the request
+    fields_to_update = request.json
+
+    # Iterate through the fields and update the corresponding attributes
+    for field, value in fields_to_update.items():
+        if field == 'title':
+            task.task_name = value
+        elif field == 'description':
+            task.description = value
+        elif field == 'priority':
+            task.priority = value
+        elif field == 'deadline':
+            task.end_date = value
+        elif field == 'status':
+            task.status = value
+
+    task.modified_at = datetime.utcnow()
     db.session.commit()
 
     return jsonify({"task": task.serialize(), "message": "Task updated!"}), 200
+
 
 # #*******************************************************************************************************************************
 # GET AI TIPS FOR SINGLE TASK
@@ -306,8 +373,12 @@ def get_ai_tips_endpoint(task_id):
     token_id = get_jwt_identity()
 
     task = Task.query.get_or_404(task_id)
+
+    print(f'task:{task.id}, project:{task.project_id}')
+
     
     project = Project.query.get_or_404(task.project_id)
+
 
     if token_id != task.user_id:
         return jsonify({"message": "Not authorized to edit task for this project."}), 401
@@ -315,7 +386,7 @@ def get_ai_tips_endpoint(task_id):
     tips = generate_ai_tips(project.id, task_id)
 
 
-    return jsonify({"tips":tips, "message":"Tips generated!"}), 200
+    return jsonify({"data":{"tips":tips, "message":"Tips generated!"}}), 200
     
     # return jsonify(project = project.serialize()), 200
     
