@@ -2,7 +2,7 @@ import os
 import openai
 import json
 from datetime import datetime
-from models import Conversation, Project, db, Task, User, Team
+from models import Conversation, Project, db, Task, User, Department
 
 
 # Load your API key from an environment variable or secret management service
@@ -14,9 +14,15 @@ openai.api_key = os.environ["OPENAI_API_KEY"]
 def generate_ai_tasks(project_id, user_id, prompt):
     """generates tasks from ChatGPT"""
 	
+    departments = Department.query.all()
+    department_names = [department.name for department in departments]
+    department_names_string = ", ".join(department_names)
+    today = datetime.now().date()
+    today_str = today.strftime('%Y-%m-%d')    
+    
     messages = [
 	    {"role": "system", 
-		"content": 'You will be asked to recommend an array of tasks to complete a project. Your output should ONLY include an array of task objects like this: [{}, {}]. Task objects should have this shape {"task_name", "type":"task", "description", "date_time"}. "date_time" should have "MM-DD-YYYY HH:MM" format. No task should have a date before today. '
+		"content": f'You will be asked to recommend an array of tasks to complete a project. Your output should ONLY include an array of task objects. Task objects should have these properties: task_name, description, date_time, department. "date_time" should have "MM-DD-YYYY HH:MM" format. No task should have a date before {today_str}. "department" should only be one of these: {department_names_string}. '
 		},
 		{"role": "user", "content": prompt}
     	]
@@ -43,19 +49,23 @@ def generate_ai_tasks(project_id, user_id, prompt):
     print(type(task_list[0]))
 
     for task in task_list:
-        if task["type"] == "task":
-            t = Task.create_new_task(task_name=task["task_name"],
-                                        description=task["description"],
-                                        notes="",
-                                        type=task["type"],
-                                        priority="Medium",
-                                        status="Not Started",
-                                        # start_date=task["start_date"],
-                                        end_date=task["date_time"],
-                                        user_id=user_id,
-                                        project_id=project_id,
-                                        meeting_user_id=None
-                        )
+        # if task["type"] == "task":
+        department_name = task['department']
+        department = Department.query.filter_by(name=department_name).first()
+        other_user = User.query.filter_by(department_id=department.id).first()
+        users = [other_user]
+
+        t = Task.create_new_task(task_name=task["task_name"],
+                                    description=task["description"],
+                                    notes="",
+                                    type="task",
+                                    priority="Medium",
+                                    status="Not Started",
+                                    end_date=task["date_time"],
+                                    user_id=user_id,
+                                    project_id=project_id,
+                                    meeting_user_id=None,
+                                    users=users)
             
         # if task["type"] == "meeting":
         #     team = Team.query.filter_by(name=task["team"]).first()

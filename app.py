@@ -5,7 +5,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError, PendingRollbackError
 from sqlalchemy import func, and_, case
 import requests
-from models import db, connect_db, User, Team, Project, Task, Conversation, UserProject
+from models import db, connect_db, User, Department, Project, Task, Conversation, UserProject
 from datetime import datetime, timedelta
 from controller import generate_ai_tasks, generate_ai_tips
 from flask_cors import CORS
@@ -56,7 +56,7 @@ def signup_endpoint():
     last_name = request.json.get('last_name')
     password = request.json.get('password')
     role = request.json.get('role')
-    team_name = request.json.get('team')
+    department_name = request.json.get('department')
     profile_img = request.json.get('profile_img_url')
 
     # Check if a user with the provided email already exists
@@ -72,7 +72,7 @@ def signup_endpoint():
         first_name=first_name,
         last_name=last_name,
         password=password,
-        team_name=team_name,
+        department_name=department_name,
         role=role,
         profile_img=profile_img
     ) 
@@ -135,8 +135,6 @@ def create_new_project():
 
     project_name = request.json.get('project_name')
     description = request.json.get('description')
-    # prompt = request.json.get('prompt')
-    # start_date = request.json.get('start_date')
     end_date = request.json.get('end_date')
     user_id = request.json.get('user_id')
     ai = request.json.get('ai_recommendation')
@@ -149,7 +147,6 @@ def create_new_project():
 
     project = Project.create_new_project(project_name=project_name,
                                          description=description,
-                                        #  start_date=start_date,
                                          end_date=end_date,
                                          user_id=user_id)
     
@@ -308,22 +305,42 @@ def delete_task(task_id):
     return jsonify({"message": f"{task.task_name} deleted!"}), 200
 
 # #*******************************************************************************************************************************
-# GET PROJECT BY ID
+# GET USER_IDs OF A PROJECT
 
-# @app.route("/prioritypilot/api/projects/<int:project_id>", methods=["GET"], endpoint="get_projects_by_id")
-# @jwt_required()
-# def get_projects_tasks(project_id):
-#     """Endpoint to get all tasks for a project"""
+@app.route("/prioritypilot/api/projects/<int:project_id>/users", methods=["GET"], endpoint="get_users_by_project_id")
+@jwt_required()
+def get_project_users(project_id):
+    """Endpoint to get all users on a project"""
 
-#     token_id = get_jwt_identity()
+    project = Project.query.get_or_404(project_id)
+    project_users=[]
+    for user_id in project.user_ids:
+        user = User.query.get(user_id)
+        project_users.append(user)
 
-#     project = Project.query.get_or_404(project_id)
+    return jsonify({"users": [user.serialize() for user in project_users] , "message": f"Received users for {project.project_name}"}), 200
 
-#     if token_id != project.user_id:
-#         return jsonify({"message": "Not authorized to get tasks for this project."}), 401
+# #*******************************************************************************************************************************
+# GET SUBORDINATE USER_IDs OF A USER
+
+@app.route("/prioritypilot/api/users/<int:user_id>/subs", methods=["GET"], endpoint="get_subs_of_user")
+@jwt_required()
+def get_subs_of_users(user_id):
+    """Endpoint to get all subordinates of a user"""
+
+    token_id = get_jwt_identity()
+    if token_id != user_id:
+        return jsonify({"message": "Not authorized to get this user's subordinates"}), 401
+    
+
+    user = User.query.get_or_404(user_id)
+
+    subordinates = user.subordinates
+    
+
+    return jsonify({"users": [user.serialize() for user in subordinates] , "message": f"Received users reporting to user_id:{user.id}"}), 200
 
 
-#     return jsonify({"project": project.serialize() , "message": f"Received data for {project.project_name}"}), 200
 
 # #*******************************************************************************************************************************
 # EDIT TASK

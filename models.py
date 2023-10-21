@@ -40,8 +40,8 @@ class User(db.Model):
     last_name = db.Column(db.Text,
                            nullable=False)
     
-    team_id = db.Column(db.Integer, 
-                        db.ForeignKey ('teams.id'),
+    department_id = db.Column(db.Integer, 
+                        db.ForeignKey ('departments.id'),
                         nullable=False)
     
     role = db.Column(db.Text,
@@ -56,20 +56,31 @@ class User(db.Model):
     profile_img = db.Column(db.Text,
                             default=DEFAULT_URL)
     
-    team = db.relationship('Team', backref="users")
+    manager_id = db.Column(db.Integer, ForeignKey('users.id'))
+    
+    department = db.relationship('Department', backref="users")
     
     projects = db.relationship('Project', secondary="users_projects", backref="users")
     
     tasks = db.relationship('Task', secondary="users_tasks", backref="users")
 
     conversations = db.relationship('Conversation', backref="users")
+    
+    subordinates = db.relationship('User', backref=db.backref('manager', remote_side=[id]))
 
     # meetings = db.relationship("Meeting", secondary="users_meetings", backref="users")
 
-
+    @property
+    def subordinate_ids(self):
+        """Return a list of user IDs for subordinates"""
+        if self.subordinates:
+            return [subordinate.id for subordinate in self.subordinates]
+        else:
+            return []
+        
     def __repr__(self):
         """better representation of obect"""
-        return f"<User #{self.id} {self.first_name} {self.last_name} {self.role} {self.team}>"
+        return f"<User #{self.id} {self.first_name} {self.last_name} {self.role} {self.department}>"
     
     def serialize(self):
         """Serialize user to Python object"""
@@ -79,12 +90,15 @@ class User(db.Model):
             "email": self.email,
             "first_name": self.first_name,
             "last_name": self.last_name,
-            "team_id": self.team_id,
+            "department_id": self.department_id,
             "role": self.role,
             "profile_img": self.profile_img,
+            "subordinate_ids": self.subordinate_ids,
             "projects": [project.serialize() for project in self.projects]
         }
     
+
+
     def update_password(self, old_password, new_password):
         """update to new password"""
 
@@ -95,19 +109,19 @@ class User(db.Model):
             db.session.commit()
         
         return False
-
     
+
     @classmethod
-    def signup(cls, email, first_name, last_name, team_name, role, password, profile_img=DEFAULT_URL):
+    def signup(cls, email, first_name, last_name, department_name, role, password, profile_img=DEFAULT_URL, manager_id=None):
         """Sign up a new user with password hashing"""
 
         hashed = bcrypt.generate_password_hash(password)
         hashed_utf8 = hashed.decode("utf8")
-        team = Team.query.filter_by(name=team_name).first()
+        department = Department.query.filter_by(name=department_name).first()
 
-        if not team:
-            team = Team(name=team_name)
-            db.session.add(team)
+        if not department:
+            department = Department(name=department_name)
+            db.session.add(department)
             db.session.commit()
 
         user = User( 
@@ -115,9 +129,10 @@ class User(db.Model):
             password=hashed_utf8,
             first_name=first_name,
             last_name=last_name,
-            team_id=team.id,
+            department_id=department.id,
             role=role,
-            profile_img=profile_img)
+            profile_img=profile_img,
+            manager_id=manager_id)
         
         db.session.add(user)
         db.session.commit()
@@ -132,15 +147,16 @@ class User(db.Model):
             return user
         else:
             return False
-         
+
+    
 
 #*****************************************************************************************************************************************************************************************************************************************************************************
-# TEAM
+# Department
 
-class Team (db.Model):
-    """Team model"""
+class Department (db.Model):
+    """Department model"""
 
-    __tablename__ = "teams"
+    __tablename__ = "departments"
 
     id = db.Column(db.Integer,
                    primary_key=True)
@@ -155,15 +171,15 @@ class Team (db.Model):
 
     # @validates('name')
     # def convert_to_lowercase(self, key, value):
-    #     """first line of defence to convert team name to lowercase"""
+    #     """first line of defence to convert department name to lowercase"""
     #     return value.lower()
     
     def __repr__(self):
-        """Better representation of team model"""
-        return f"<Team #{self.id} {self.name}>"
+        """Better representation of department model"""
+        return f"<Department #{self.id} {self.name}>"
     
     def serialize(self):
-        """Serialize team to Python object"""
+        """Serialize department to Python object"""
 
         return {
             "id": self.id,
@@ -224,18 +240,21 @@ class Project (db.Model):
 
     conversations = db.relationship("Conversation", backref="project", cascade="all, delete-orphan")
 
-    # users = db.relationship("Users", secondary="users_projects", backref="projects")
     
-    # @validates('project_name')
-    # def convert_to_lowercase(self, key, value):
-    #     """first line of defence to convert project name to lowercase"""
-    #     return value.lower()
 
     @validates('status')
     def validate_status(self, key, value):
         if value not in self._valid_statuses:
             raise ValueError(f"Invalid status: {value}. Valid options are: {', '.join(self._valid_statuses)}")
         return value
+
+    @property
+    def user_ids(self):
+        """Return a list of user IDs for users on project"""
+        if self.users:
+            return [user.id for user in self.users]
+        else:
+            return []
 
     def __repr__(self):
         """Better representation of project model"""
@@ -249,10 +268,10 @@ class Project (db.Model):
             "project_name": self.project_name,
             "description": self.description,
             "created_at": self.created_at,
-            # "start_date": self.start_date,
             "end_date": self.end_date,
             "user_id": self.user_id,
             "status": self.status,
+            "user_ids": self.user_ids,
             "tasks": [task.serialize() for task in self.tasks]
         }
     
@@ -274,10 +293,10 @@ class Project (db.Model):
         return project
     
 
-@event.listens_for(Project, 'before_insert')
-def convert_project_name_to_lowercase(mapper, connection, target):
-    """Second line of defence to convert project_name to lowercase"""
-    target.project_name = target.project_name.lower()
+# @event.listens_for(Project, 'before_insert')
+# def convert_project_name_to_lowercase(mapper, connection, target):
+#     """Second line of defence to convert project_name to lowercase"""
+#     target.project_name = target.project_name.lower()
 
 #*****************************************************************************************************************************************************************************************************************************************************************************
 # TASK
@@ -322,9 +341,6 @@ class Task (db.Model):
                             nullable=False,
                             default=datetime.utcnow)
     
-    # start_date = db.Column(db.DateTime,
-    #                        nullable=False)
-
     end_date = db.Column(db.DateTime,
                            nullable=False)
     
@@ -342,6 +358,13 @@ class Task (db.Model):
 
     # users = db.relationship("Users", secondary="users_tasks", backref="tasks")
 
+    @property
+    def user_ids(self):
+        """Return a list of user IDs for users on task"""
+        if self.users:
+            return [user.id for user in self.users]
+        else:
+            return []
 
     @validates('type')
     def validate_type(self, key, value):
@@ -381,17 +404,28 @@ class Task (db.Model):
             "status": self.status,
             "created_at": self.created_at,
             "modified_at": self.modified_at,
-            # "start_date": self.start_date,
             "end_date": self.end_date,
             "user_id": self.user_id,
             "meeting_user_id": self.meeting_user_id,
             "project_id": self.project_id,
-            "project_name": project_name
+            "project_name": project_name,
+            "user_ids": self.user_ids
         }
     
 
     @classmethod
-    def create_new_task(cls, task_name, description, notes, type, priority, status, end_date, user_id, meeting_user_id, project_id):
+    def create_new_task(cls, 
+                        task_name, 
+                        description, 
+                        notes, 
+                        type, 
+                        priority, 
+                        status, 
+                        end_date, 
+                        user_id, 
+                        meeting_user_id, 
+                        project_id, 
+                        users=[]):
         """create a new task and create """
 
         task = Task(task_name=task_name,
@@ -400,24 +434,21 @@ class Task (db.Model):
                           type=type,
                           priority=priority,
                           status=status,
-                        #   start_date=start_date, 
                           end_date=end_date,
                           user_id=user_id,
                           meeting_user_id=meeting_user_id,
-                          project_id=project_id
+                          project_id=project_id,
                           )
         user = User.query.get(user_id)
         task.users.append(user)
+        task.users.extend(users)
+        project = Project.query.get(project_id)
+        project.users.append(user)
+        project.users.extend(users)
         db.session.add(task)
         db.session.commit()
         return task
     
-
-# @event.listens_for(Task, 'before_insert')
-# def convert_task_name_to_lowercase(mapper, connection, target):
-#     """Second line of defence to convert task_name to lowercase"""
-#     target.task_name = target.task_name.lower()
-
 
     
 #*****************************************************************************************************************************************************************************************************************************************************************************
