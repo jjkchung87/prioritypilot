@@ -305,7 +305,7 @@ def delete_task(task_id):
     return jsonify({"message": f"{task.task_name} deleted!"}), 200
 
 # #*******************************************************************************************************************************
-# GET USER_IDs OF A PROJECT
+# GET USERS OF A PROJECT
 
 @app.route("/prioritypilot/api/projects/<int:project_id>/users", methods=["GET"], endpoint="get_users_by_project_id")
 @jwt_required()
@@ -313,33 +313,107 @@ def get_project_users(project_id):
     """Endpoint to get all users on a project"""
 
     project = Project.query.get_or_404(project_id)
-    project_users=[]
-    for user_id in project.user_ids:
-        user = User.query.get(user_id)
-        project_users.append(user)
+    users = project.users;
+    project_users = []
+    latest_update = datetime.strptime("01-01-1990", "%d-%m-%Y")
 
-    return jsonify({"users": [user.serialize() for user in project_users] , "message": f"Received users for {project.project_name}"}), 200
+    for user in users:
+        project_tasks = [task for task in user.tasks if task.project_id==project_id]
+        project_task_count = 0
+        completed_task_count = 0
+        in_progress_task_count = 0
+        not_started_task_count = 0
+
+        for task in project_tasks:
+            project_task_count += 1
+            if task.status =="Complete":
+                completed_task_count += 1 
+            if task.status =="In Progress":
+                in_progress_task_count += 1 
+            if task.status =="Not Started":
+                not_started_task_count += 1 
+            if task.modified_at > latest_update:
+                latest_update = task.modified_at
+        
+        user_object = {"id": user.id,
+                        "first_name": user.first_name, 
+                       "last_name": user.last_name, 
+                       "role": user.role, 
+                       "department": user.department.name,
+                       "profile_img": user.profile_img,
+                        "total_task_count": project_task_count,
+                        "completed_task_count": completed_task_count,
+                        "in_progress_task_count": in_progress_task_count,
+                        "not_started_task_count": not_started_task_count,
+                        "latest_update": latest_update}
+        
+        project_users.append(user_object)
+
+        print(project_users)
+
+    # project_users=[]
+    # for user_id in project.user_ids:
+    #     user = User.query.get(user_id)
+    #     project_users.append(user)
+
+    # print(project_users)
+
+    return jsonify({"data":{"users": project_users , "message": f"Received users for {project.project_name}"}}), 200
 
 # #*******************************************************************************************************************************
-# GET SUBORDINATE USER_IDs OF A USER
+# GET SUBORDINATE USERs OF A USER
 
 @app.route("/prioritypilot/api/users/<int:user_id>/subs", methods=["GET"], endpoint="get_subs_of_user")
 @jwt_required()
 def get_subs_of_users(user_id):
     """Endpoint to get all subordinates of a user"""
-
+    
     token_id = get_jwt_identity()
     if token_id != user_id:
         return jsonify({"message": "Not authorized to get this user's subordinates"}), 401
-    
 
+    today = datetime.utcnow()
+    earliest_date = today - timedelta(days=30)  # Use timedelta to subtract days
     user = User.query.get_or_404(user_id)
-
     subordinates = user.subordinates
-    
+    managed_users = []
 
-    return jsonify({"users": [user.serialize() for user in subordinates] , "message": f"Received users reporting to user_id:{user.id}"}), 200
+    for subordinate in subordinates:
+        total_tasks = [task for task in subordinate.tasks if task.end_date > earliest_date]  # Use subordinate instead of user
+        total_task_count = 0
+        completed_task_count = 0
+        in_progress_task_count = 0
+        not_started_task_count = 0
+        latest_update = datetime(2023,10,14)  # Initialize with a very old date
 
+        for task in total_tasks:
+            total_task_count += 1
+            if task.status == "Complete":
+                completed_task_count += 1
+            if task.status == "In Progress":
+                in_progress_task_count += 1
+            if task.status == "Not Started":
+                not_started_task_count += 1
+            if task.modified_at > latest_update:
+                latest_update = task.modified_at
+
+        user_object = {
+            "id": subordinate.id,
+            "first_name": subordinate.first_name,
+            "last_name": subordinate.last_name,
+            "role": subordinate.role,
+            "department": subordinate.department.name,
+            "profile_img": subordinate.profile_img,
+            "total_task_count": total_task_count,
+            "completed_task_count": completed_task_count,
+            "in_progress_task_count": in_progress_task_count,
+            "not_started_task_count": not_started_task_count,
+            "latest_update": latest_update,  # Format as needed
+        }
+
+        managed_users.append(user_object)
+
+    return jsonify({"data": {"users": managed_users, "message": f"Received users managed by user id: {user.id}"}}), 200
 
 
 # #*******************************************************************************************************************************
