@@ -120,16 +120,26 @@ def generate_ai_tips(project_id, task_id):
 
     conversation = Conversation.query.filter_by(project_id=project_id).first()
 
+    print('*****************CONVERSATION********************')
+    print(conversation)
+
+
     if conversation:
-        messages = conversation.get_messages()
+        db_messages = conversation.get_messages()
+
+        print('*****************DB MESSAGES********************')
+        print(db_messages)
+
+        if not isinstance(db_messages, list):
+            db_messages = [db_messages]
 
         # Iterate through messages and convert content to JSON if it's a list
-        for message in messages:
+        for message in db_messages:
             if isinstance(message['content'], list):
                 message['content'] = json.dumps(message['content'])
         
-        messages.append(new_message)
-        messages.insert(0, system_message)
+        db_messages.append(new_message)
+        db_messages.insert(0, system_message)
   
     else:
         conversation = Conversation(user_id=task.user_id,

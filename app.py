@@ -450,7 +450,7 @@ def edit_task(project_id, task_id):
     task.modified_at = datetime.utcnow()
     db.session.commit()
 
-    return jsonify({"task": task.serialize(), "message": "Task updated!"}), 200
+    return jsonify({"data":{"task": task.serialize(), "message": "Task updated!"}}), 200
 
 
 # #*******************************************************************************************************************************
