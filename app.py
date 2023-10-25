@@ -345,7 +345,8 @@ def get_project_users(project_id):
                         "completed_task_count": completed_task_count,
                         "in_progress_task_count": in_progress_task_count,
                         "not_started_task_count": not_started_task_count,
-                        "latest_update": latest_update}
+                        "latest_update": latest_update,
+                        "manager_id": user.manager_id}
         
         project_users.append(user_object)
 
@@ -408,7 +409,8 @@ def get_subs_of_users(user_id):
             "completed_task_count": completed_task_count,
             "in_progress_task_count": in_progress_task_count,
             "not_started_task_count": not_started_task_count,
-            "latest_update": latest_update,  # Format as needed
+            "latest_update": latest_update,
+            "manager_id": subordinate.manager_id
         }
 
         managed_users.append(user_object)

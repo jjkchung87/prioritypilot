@@ -108,7 +108,7 @@ def generate_ai_tips(project_id, task_id):
     content = f"I am having trouble with the task: '{task_name}'. Give me 3 tips of how I can navigate this task. Your output should only include an array of 3 tips and nothing else."
 
     system_message = {"role": "system", 
-        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array data type of 3 strings and nothing else. Each tip should be no more than 15 words."
+        "content": "You will be asked to give 3 tips on a particular task from a list of tasks you previously gave for an ongoing project. Your response should only be an array data type of 3 strings and nothing else. Each tip should be no more than 25 words."
     }
 
     new_message = {
