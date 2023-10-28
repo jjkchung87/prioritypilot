@@ -500,7 +500,7 @@ class Conversation(db.Model):
             self.messages = json.dumps(current_messages)
 
         else:
-            self.messages = json.dumps([messages])
+            self.messages = json.dumps(messages)
 
         db.session.commit()
 

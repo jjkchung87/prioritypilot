@@ -65,6 +65,8 @@ for i in range(4):
     )
 
 
+
+
 # Create 3 users who report into the Test User
 
 roles = ["Product Manager", "Co-ordinator", "Analyst"]
@@ -89,10 +91,43 @@ for i in range(3):
     )
 
     db.session.add(user)
+    subordinates.append(user)
     db.session.commit()
 
 
-# # Create 1 project for the test user
+# Create a "Miscellaneous Project"
+
+misc_proj = Project(
+    project_name="Miscellaneous",
+    description=fake.text(),
+    end_date=(datetime.now() + timedelta(days=30)).date(),
+    user_id=test_user.id
+)
+
+db.session.add(misc_proj)
+db.session.commit()
+
+
+# Create 3 random tasks for each subordinate
+
+for i in range(3):
+    task = Task.create_new_task(
+        task_name=fake.text(),
+        description=fake.text(),
+        notes="",
+        type="task",
+        priority="Medium",
+        status=random.choice(["Not Started", "In Progress", "Complete"]),
+        end_date=datetime(2023,10,15),
+        user_id=test_user.id,
+        meeting_user_id=None,
+        project_id=misc_proj.id,
+        users=subordinates
+    )
+
+
+
+#  Create an actual project for the test user
 
 project = Project(
     project_name="AI Task Management App",

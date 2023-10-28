@@ -10,6 +10,9 @@ from datetime import datetime, timedelta
 from controller import generate_ai_tasks, generate_ai_tips
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
+from flask_mail import Mail, Message
+import random
+import string
 
 
 app = Flask(__name__)
@@ -66,6 +69,16 @@ def signup_endpoint():
         # Return an error response if the user already exists
         return jsonify({"message": "User with this email already exists."}), 409
 
+    if len(password) < 8 :
+        return jsonify({"message": "Password must be at least 8 characters long."}), 409
+
+    department = Department.query.filter_by(name=department_name).first()
+
+    if not department:
+        department = Department(name=department_name)
+        db.session.add(department)
+        db.session.commit()
+
     # Call User.signup class method to create a new user
     user = User.signup(
         email=email,
@@ -99,13 +112,14 @@ def login_endpoint():
 
     user = User.authenticate(email, password)
 
-
     # Create an access token with the custom payload
     access_token = create_access_token(identity=user.id)
 
     if not user:
         # Check for incorrect email/password
         return jsonify({"message": "Incorrect email or password."}), 401
+    
+    
 
     # Return the serialized user data along with a success response
     return jsonify({"user": user.serialize(), "access_token": access_token, "message": "User login successful!"}), 200

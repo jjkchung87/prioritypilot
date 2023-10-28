@@ -22,7 +22,7 @@ def generate_ai_tasks(project_id, user_id, prompt):
     
     messages = [
 	    {"role": "system", 
-		"content": f'You will be asked to recommend an array of tasks to complete a project. Your output should ONLY include an array of task objects. Task objects should have these properties: task_name, description, date_time, department. "date_time" should have "MM-DD-YYYY HH:MM" format. No task should have a date before {today_str}. "department" should only be one of these: {department_names_string}. '
+		"content": f'You will be asked to recommend an array of tasks to complete a project. Your output should ONLY include an array of at least 5 task objects. Task objects should have these properties: task_name, description, date_time, department. "date_time" should have "MM-DD-YYYY HH:MM" format. No task should have a date before {today_str}. "department" should only be one of these: {department_names_string}. '
 		},
 		{"role": "user", "content": prompt}
     	]
