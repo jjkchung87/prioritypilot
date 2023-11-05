@@ -1,8 +1,7 @@
 import os
 
-from flask import Flask, render_template, request, flash, redirect, session, g, jsonify, url_for
+from flask import Flask, render_template, request, flash, redirect, session,jsonify
 from flask_debugtoolbar import DebugToolbarExtension
-from sqlalchemy.exc import IntegrityError, PendingRollbackError
 from sqlalchemy import func, and_, case
 import requests
 from models import db, connect_db, User, Department, Project, Task, Conversation, UserProject
@@ -10,7 +9,6 @@ from datetime import datetime, timedelta
 from controller import generate_ai_tasks, generate_ai_tips
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, get_jwt_identity, jwt_required
-from flask_mail import Mail, Message
 import random
 import string
 
@@ -39,6 +37,7 @@ jwt = JWTManager(app)
 
 @app.after_request
 def add_cors_headers(response):
+    """Adds CORS headers to the response object."""
     response.headers['Referrer-Policy'] = 'no-referrer-when-downgrade'
     return response
 
