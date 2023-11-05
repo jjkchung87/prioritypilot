@@ -35,13 +35,9 @@ This project was built as part of Springboard's 2023 Hackathon by the following 
 
 ## Technologies Used
 
-- **Frontend**: React.js, Semantic UI React, React Router, Axios
-- **Backend**: Flask, Flask-RESTful, SQLAlchemy
+- **Frontend**: React.js, Semantic UI, Axios
+- **Backend**: Flask, SQLAlchemy, GPT 3.5 Turbo
 - **Database**: PostgreSQL
-- **Authentication**: Flask-JWT-Extended
-- **Email Verification**: Flask-Mail
-- **AI Task Recommendations**: (Specify the AI model/library used)
-- **Version Control**: Git and GitHub
 
 ## Getting Started
 
