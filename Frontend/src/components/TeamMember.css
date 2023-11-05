@@ -1,0 +1,36 @@
+.TeamMember {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+  }
+  
+  .TeamMember-img {
+    max-width: 80px; /* Adjust the size as needed */
+    height: 80px; /* Ensure the image is square */
+    object-fit: cover; /* Maintain aspect ratio and crop as needed */
+    border-radius: 50%;
+    margin-right: 10px;
+    flex: 0 0 100px; /* Set a fixed width for the image */
+    border: solid white;
+    /* box-shadow: 0 2px 2px; */
+    
+  }
+  
+  
+  .TeamMember-info {
+    flex: 1;
+    font-size: 12px;
+  }
+  
+
+  
+  /* TeamMember.css */
+.last-update {
+    margin-bottom: 5px; /* Adjust the margin as needed */
+  }
+  
+  .days-ago {
+    margin-top: 5px; /* Adjust the margin as needed */
+    font-size: 10px;
+  }
+  

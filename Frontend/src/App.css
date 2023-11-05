@@ -1,0 +1,255 @@
+:root {
+  --progress-bar: 90%; 
+}
+
+*, *::after, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.user-page {
+  display: flex;
+  background-color: #E4E4E5;
+  height: auto;
+  min-height: 100vh;
+}
+.user-dashboard {
+  padding-top: 3rem;
+}
+
+.project-table {
+  height: fit-content;
+  margin-bottom: 10px;
+  width: calc(100vw - 300px)
+}
+
+/* navbar styling ----------------------------*/
+.main-navbar {
+  background-color: #0E578B;  
+  width: 100vw;
+  height: 6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  font-size: 1.3rem;
+  color: white;
+}
+.registered {
+  display: flex;
+  width: 50%;
+  justify-content: end;
+  gap: 20px;
+  align-items: center;
+}
+
+.not-registered {
+  font-size: 2rem;
+}
+.logo-link {
+  width: fit-content;
+}
+.logo-image {
+  width: 350px;
+  margin: auto;
+}
+
+.new-project-button{
+  background-color: white !important;
+  color: #0E578B!important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+
+}
+
+/* sidebar styling------------------------------------ */
+.sidebar {
+	width: 400x;
+	min-width: 300x;
+  height: auto;
+	display: flex;
+	flex-direction: column;
+	justify-content: top;
+	padding: 1rem 2rem;
+  border-right: 1px solid #ccc; /* Adjust the color and thickness as needed */	
+}
+
+.sidebar .header {
+	font-size: 1.5rem !important;
+  margin-top: 1rem !important;
+}
+
+.list-content {
+  text-align: left;
+}
+
+/* dropdown styling------------------------------------------*/
+.dropdown {
+	width: 80vw;
+	padding: 3rem;
+  margin: auto;
+  display: flex;
+  justify-content: space-evenly;
+}
+
+.select-project {
+	width: 70%;
+}
+
+.all-projects-button {
+  width: 20%;
+  background-color: white !important;
+}
+
+.select-project, .all-projects-button {
+	height: 3rem !important;
+	text-align: center;
+	border-radius: 10px !important;
+	border: none !important;
+	font-size: 1.3rem;
+	box-shadow: 2px 2px 5px grey !important;
+	text-transform: capitalize;
+  cursor: pointer;
+}
+
+.select-project:hover, .all-projects-button:hover {
+  background-color: rgb(246, 246, 246) !important;
+}
+
+/* status tables ----------------------------------------------------------- */
+
+.status-tables {
+	display: flex;
+	justify-content: space-evenly;
+}
+
+.table {
+	width: 30%;
+	text-align: center;
+	box-shadow: 2px 2px 7px rgb(78, 78, 78);
+	border-radius: 5px;
+	padding: 3rem;
+	background-color: whitesmoke
+}
+
+.status-color {
+  font-size: 10px !important;
+  color: black;
+  text-shadow: none;
+}
+
+.progress-bar {
+  width: 98%;
+  display: flex;
+  margin: auto;
+  height: 2rem;
+  border-radius: 5px;
+}
+
+.completed-tasks {
+  background-color: rgb(54, 91, 144);
+  color: white;
+}
+.in-progress-tasks {
+  background-color: rgb(167, 203, 255)
+}
+.not-started-tasks {
+  background-color: rgb(146, 146, 146)
+}
+
+.completed-tasks, .in-progress-tasks, .not-started-tasks {
+  padding-top: 3px;
+}
+
+.time {
+  font-size: 2.5rem;
+  padding: 1rem;
+  font-weight: 700;
+  color: rgb(74, 74, 74)
+}
+
+
+/* styling main screen tabs---------------------- */
+.main-screen {
+  margin: 2rem 3rem 3rem 3rem;
+}
+.tab-pane {
+  padding: 2rem !important;
+}
+
+.tab-project-name {
+  text-transform: capitalize;
+  font-weight: 800;
+}
+
+/* styling new project form---------------------- */
+.add_project {
+  color: black;
+}
+
+.add_project_logo_image {
+  max-width: 20px;
+  margin: 5px;
+}
+
+.new-project-button:hover {
+  cursor: pointer;
+  transform: scale(1.05);
+}
+
+/* styling countdown modal ---------------------- */
+
+.countdown-modal-table {
+  color: black;
+}
+.modal-content {
+  max-height: 600px; /* Adjust the maximum height as needed */
+  overflow-y: auto; /* Add a vertical scroll bar when content exceeds the maximum height */
+  background-color: #E4E4E5;
+  color: black;
+}
+.countdown-modal-table-header{
+  background-color: #0E578B; 
+
+}
+
+
+/*single task card----------------------------*/
+.card-icons {
+  float: right;
+}
+.task-card {
+  padding: 1.2rem !important;
+  width: 100% !important;
+  height: 100% !important;
+}
+.created-at { 
+  float: right;
+}
+
+.past-due {
+  color: red !important;
+}
+.task-name {
+  text-transform:capitalize;
+}
+
+.task-ai-button {
+  color: white !important;
+  background-color:#0E578B !important;
+}
+
+.task-ai-button:hover {
+  transform: scale(1.05);
+}
+
+
+
+
+
+ 

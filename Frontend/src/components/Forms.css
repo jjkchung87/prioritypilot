@@ -1,0 +1,277 @@
+form {
+  background-color: rgb(234, 234, 234);
+  border-radius: 10px;
+  font-size: 1.4rem !important;
+  box-shadow: 2px 2px 8px gray;
+  padding: 5rem 3rem;
+}
+
+.register form {
+  margin: 7vh auto;
+  width: 60vw;
+}
+
+.login {
+  display: flex;
+  justify-content: space-evenly;
+  margin-top: 8vh;
+}
+
+.login form {
+  height: 80vh; 
+  width: 40vw;
+}
+
+.image-logo {
+  border: black solid 1px;
+  width: 40vw;
+  height: 80vh;
+}
+
+.form-header {
+  text-align: center;
+  margin: 40px !important;
+  font-size: 3rem !important;
+}
+
+.form-side-note {
+  vertical-align: center;
+  text-align: right;
+  font-size: small;
+}
+
+a {
+  color: blue;
+}
+
+a:hover {
+  transform: scale(1.1);
+  text-shadow: 0px 0px 1px rgb(4, 4, 5);
+}
+
+.add-new-task {
+  width: 60%;
+  padding: 2rem;
+  font-size: 1rem !important;
+}
+
+/* project form styling ----------------------------------------------- */
+
+.add_project {
+  position: absolute;
+  width: 100%;
+  height: 100vh;
+  top:6rem;
+  left:0;
+  background-color: rgba(255,255,255, 0.8)
+}
+
+.project-form, .spinner, .modal-content {
+  padding: 3rem;
+  position: absolute;
+  z-index: 30;
+  top: 3rem;
+  width: 50%;
+  left: 50%;
+  transform: translateX(-50%); 
+}
+.spinner, .modal-content {
+  color: grey;
+  text-align: center;
+  box-shadow: 2px 2px 8px gray;
+  background-color: rgba(255,255,255, 0.8);
+  border-radius: 10px;
+  height: fit-content;
+  min-width: 400px;
+}
+.spinner img {
+  margin-top: 40px;
+  width: 80px;
+  animation: rotation 2s infinite linear;
+}
+
+@keyframes rotation {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(359deg);
+  }
+}
+
+.ai-checkbox-field {
+  display: flex;
+  align-items: center;
+}
+
+.ai-checkbox-field input {
+  margin-right: 1rem;
+}
+/* add new task form ---------------- */
+
+.select {
+  text-transform: capitalize;
+}
+.edit-task {
+  position: absolute;
+  width: 100%;
+  background-color: rgba(255,255,255, 0.8);
+  z-index: 40;
+  padding: 2rem;
+}
+
+.edit-task-form {
+  position: absolute;
+  width: 60%;
+  padding: 1rem 2rem;
+  font-size: 1rem !important;
+}
+
+.project-name {
+  text-transform: capitalize;
+}
+
+.error-msg {
+  color: red;
+  font-size: 1.2rem;
+}
+
+
+/* modals------------------------------------------------------------ */
+
+.modal-background {
+  position: fixed;
+  width: 100%;
+  height: 100vh;
+  top: 0;
+  left:0;
+  background-color: rgba(255,255,255, 0.8);
+  z-index: 60;
+}
+
+.modal-background .spiner img{
+  width: 3px !important;
+}
+
+/* Style the dropdown container */
+.select-container {
+  position: relative;
+  width: 120px; /* Adjust the width as needed */
+  border: 1px solid #ccc;
+  background-color: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Style the select element */
+.select-dropdown {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  appearance: none; /* Remove default arrow on some browsers */
+}
+
+/* Style the arrow icon */
+.select-arrow {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+}
+
+/* Style the dropdown options */
+.select-dropdown option {
+  background-color: #fff;
+  color: #333;
+}
+
+/* Hover effect for options */
+.select-dropdown option:hover {
+  background-color: #f0f0f0;
+}
+
+/* Active (selected) option */
+.select-dropdown option:checked {
+  background-color: #007bff; /* Adjust the color for selected option */
+  color: #fff;
+}
+
+.Modal-logo {
+  max-height: 20px;
+  cursor: pointer;
+}
+
+.Modal-logo:hover {
+  animation: spin 2s linear infinite;
+}
+
+.Modal-logo-spinner {
+  max-height: 20px;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Modal.css */
+.table-style {
+  width: 90%; 
+  margin: 15px auto;
+  box-shadow: 2px 2px 5px rgb(75, 75, 75);
+  background-color: rgb(243, 243, 243);
+  border-collapse: collapse;
+}
+
+tr:nth-of-type(2) {
+  background-color:rgb(230, 230, 230)
+}
+
+thead td{
+  text-align: center;
+  font-size: 1.4rem;
+  background-color:#0E578B;
+  color: white;
+  padding: 3px 15px;
+}
+
+tbody td {
+  height: 5rem;
+  padding: 15px 8px;
+  text-align: left;
+  vertical-align: bottom;
+}
+
+.poll-task-name {
+  font-weight: 700;
+}
+.update-time-header{
+  color: rgb(54, 80, 143);
+  text-align: center;
+}
+.poll-image {
+  text-align: center;
+  width: 70px;
+}
+
+.poll-select, .poll-date {
+  height: 2rem;
+	text-align: center;
+	border-radius: 10px !important;
+	border: none !important;
+	box-shadow: 2px 2px 5px grey !important;
+	text-transform: capitalize;
+  cursor: pointer;
+}
+
+.poll-select:hover, .poll-date:hover {
+  background-color: rgb(246, 246, 246)
+}
+
+.close-window {
+  float: right;
+}
+
